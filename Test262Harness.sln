@@ -1,0 +1,33 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test262Harness", "src\Test262Harness\Test262Harness.csproj", "{98F4CECD-837B-48B9-B7E2-A72BDD53D8D1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test262Harness.Runner", "src\Test262Harness.Runner\Test262Harness.Runner.csproj", "{5036C7C0-B559-4389-87E8-871E19F46D2A}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{766D3EDA-21C8-4AD5-B391-0E1D9E42D1AF}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+		src\Directory.Build.props = src\Directory.Build.props
+		global.json = global.json
+	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "_build", "build\_build.csproj", "{C3E0E522-3D40-4CDA-B0C2-FCFF6D66AD3E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C3E0E522-3D40-4CDA-B0C2-FCFF6D66AD3E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C3E0E522-3D40-4CDA-B0C2-FCFF6D66AD3E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{98F4CECD-837B-48B9-B7E2-A72BDD53D8D1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{98F4CECD-837B-48B9-B7E2-A72BDD53D8D1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{98F4CECD-837B-48B9-B7E2-A72BDD53D8D1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{98F4CECD-837B-48B9-B7E2-A72BDD53D8D1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5036C7C0-B559-4389-87E8-871E19F46D2A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5036C7C0-B559-4389-87E8-871E19F46D2A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5036C7C0-B559-4389-87E8-871E19F46D2A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5036C7C0-B559-4389-87E8-871E19F46D2A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

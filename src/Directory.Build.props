@@ -1,0 +1,45 @@
+<Project>
+
+  <PropertyGroup>
+
+    <Title>Test262 Harness</Title>
+    <Product>Test262 Harness</Product>
+    <Description>Test262 Harness for .NET</Description>
+    <Copyright>Copyright Marko Lahma</Copyright>
+    <NeutralLanguage>en-US</NeutralLanguage>
+
+    <Authors>Marko Lahma</Authors>
+    <WarningsAsErrors>True</WarningsAsErrors>
+
+    <PackageTags>test262,javascript,ecmascript,test,harness</PackageTags>
+    <PackageProjectUrl>https://github.com/lahma/test262-harness-dotnet</PackageProjectUrl>
+    <PackageReleaseNotes>https://github.com/lahma/test262-harness-dotnet</PackageReleaseNotes>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <IsPackable>True</IsPackable>
+
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+
+    <VersionPrefix>0.0.1</VersionPrefix>
+    <VersionSuffix Condition="'$(VersionSuffix)'!='' AND '$(BuildNumber)' != ''">$(VersionSuffix)-$(BuildNumber)</VersionSuffix>
+
+    <CLSCompliant>True</CLSCompliant>
+    <DebugSymbols>True</DebugSymbols>
+
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(APPVEYOR)' == 'true' OR '$(GITHUB_ACTIONS)' == 'true' ">
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All"/>
+  </ItemGroup>
+
+</Project>
