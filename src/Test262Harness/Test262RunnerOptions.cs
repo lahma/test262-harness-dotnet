@@ -2,7 +2,7 @@ using System.ComponentModel;
 
 namespace Test262Harness;
 
-public class Test262RunnerOptions
+public sealed class Test262RunnerOptions
 {
     public int MaxDegreeOfParallelism { get; set; } = Environment.ProcessorCount;
 
@@ -14,4 +14,12 @@ public class Test262RunnerOptions
 
     [Description("Includes directory. Inferred from test262Dir or else detected by walking upward from the first test found.")]
     public string IncludesDir { get; set; } = "";
+
+    public Action<Test262File> Execute = _ => throw new NotImplementedException("Execute callback not implemented");
+
+    public Func<Test262File, bool> IsIgnored { get; set; }  = _ => false;
+
+    public Func<Exception, bool> IsParseError { get; set; } = _ => throw new NotImplementedException("IsParseError callback not implemented");
+
+    public Action<Test262File> OnTestExecuted { get; set; } = _ => { };
 }

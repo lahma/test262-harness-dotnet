@@ -1,6 +1,6 @@
 ﻿namespace Test262Harness;
 
-public sealed class Summary
+public sealed class TestExecutionSummary
 {
     public List<Test262File> AllowedFailure { get; } = new();
     public List<Test262File> AllowedFalsePositive { get; } = new();
