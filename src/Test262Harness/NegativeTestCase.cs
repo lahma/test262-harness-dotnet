@@ -2,9 +2,14 @@ namespace Test262Harness;
 
 public sealed class NegativeTestCase
 {
-    public TestingPhase Phase { get; set; }
+    public NegativeTestCase(
+        TestingPhase phase,
+        ExpectedErrorType expectedErrorType)
+    {
+        Phase = phase;
+        Type = expectedErrorType;
+    }
 
-    public ExpectedErrorType Type { get; set; } = default;
-
-    public string[] Flags = Array.Empty<string>();
+    public TestingPhase Phase { get; }
+    public ExpectedErrorType Type { get; }
 }
