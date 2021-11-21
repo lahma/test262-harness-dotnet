@@ -31,6 +31,16 @@ public sealed class Test262Stream : IEnumerable<Test262File>
     }
 
     /// <summary>
+    /// Creates an enumerable stream for test cases from given list of files.
+    /// </summary>
+    /// <param name="files"> Files to use. </param>
+    /// <returns>A stream that can be enumerated.</returns>
+    public static Test262Stream Create(IEnumerable<string> files)
+    {
+        return Create(new Test262StreamOptions(files));
+    }
+
+    /// <summary>
     /// Creates an enumerable stream for test cases.
     /// </summary>
     /// <param name="options">Options to use.</param>
@@ -48,20 +58,26 @@ public sealed class Test262Stream : IEnumerable<Test262File>
 
     public IEnumerator<Test262File> GetEnumerator()
     {
-        var targetFiles = GetTargetFiles();
+        var targetFiles = _options.Files ?? GetTargetFiles();
+
+        targetFiles = targetFiles
+            .Where(x => x.IndexOf("_FIXTURE", StringComparison.OrdinalIgnoreCase) == -1);
 
         foreach (var filePath in targetFiles)
         {
             foreach (var testCase in Test262File.FromFile(filePath))
             {
-                yield return testCase;
+                if (_options.Filter(testCase))
+                {
+                    yield return testCase;
+                }
             }
         }
     }
 
     private IEnumerable<string> GetTargetFiles()
     {
-        var testDirectory = Path.Combine(_options.BaseDirectory, "test");
+        var testDirectory = Path.Combine(_options.BaseDirectory!, "test");
         var subDirectories = _options.SubDirectories;
 
         IEnumerable<string> targetFiles = Array.Empty<string>();
@@ -70,8 +86,6 @@ public sealed class Test262Stream : IEnumerable<Test262File>
             targetFiles = targetFiles.Concat(Directory.GetFiles(Path.Combine(testDirectory, subDirectory), "*.*", SearchOption.AllDirectories));
         }
 
-        targetFiles = targetFiles
-            .Where(x => x.IndexOf("_FIXTURE", StringComparison.OrdinalIgnoreCase) == -1);
         return targetFiles;
     }
 }

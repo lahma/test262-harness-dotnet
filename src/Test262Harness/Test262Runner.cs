@@ -17,11 +17,15 @@ public sealed class Test262Runner
     public TestExecutionSummary Run(IEnumerable<Test262File> files)
     {
         var summary = new TestExecutionSummary();
-        foreach (var file in files)
+        var options = new ParallelOptions
+        {
+            MaxDegreeOfParallelism = _options.MaxDegreeOfParallelism
+        };
+        Parallel.ForEach(files, options, file =>
         {
             RunTest(file, summary);
             _options.OnTestExecuted(file);
-        }
+        });
         return summary;
     }
 
