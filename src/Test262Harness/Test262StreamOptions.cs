@@ -17,6 +17,8 @@ public sealed class Test262StreamOptions
     /// </summary>
     public string[] SubDirectories { get; set; } = { "annexB", "built-ins", "intl402", "language" };
 
+    public Func<Test262File, bool> Filter { get; set; } = _ => true;
+
     internal void Validate()
     {
         if (string.IsNullOrWhiteSpace(BaseDirectory))

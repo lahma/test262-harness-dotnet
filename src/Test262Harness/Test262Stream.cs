@@ -1,3 +1,5 @@
+using System.Collections;
+
 namespace Test262Harness;
 
 /// <summary>
@@ -7,7 +9,7 @@ namespace Test262Harness;
 /// Single test case file can produce either one or two <see cref="Test262File"/> instances based on whether it's
 /// a module (always one) or a script file (two if both strict and non-strict mode will be tested).
 /// </remarks>
-public sealed class Test262Stream : IAsyncEnumerable<Test262File>
+public sealed class Test262Stream : IEnumerable<Test262File>
 {
     private readonly Test262StreamOptions _options;
 
@@ -39,7 +41,25 @@ public sealed class Test262Stream : IAsyncEnumerable<Test262File>
         return new Test262Stream(options);
     }
 
-    public async IAsyncEnumerator<Test262File> GetAsyncEnumerator(CancellationToken cancellationToken = default)
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        return GetEnumerator();
+    }
+
+    public IEnumerator<Test262File> GetEnumerator()
+    {
+        var targetFiles = GetTargetFiles();
+
+        foreach (var filePath in targetFiles)
+        {
+            foreach (var testCase in Test262File.FromFile(filePath))
+            {
+                yield return testCase;
+            }
+        }
+    }
+
+    private IEnumerable<string> GetTargetFiles()
     {
         var testDirectory = Path.Combine(_options.BaseDirectory, "test");
         var subDirectories = _options.SubDirectories;
@@ -52,15 +72,7 @@ public sealed class Test262Stream : IAsyncEnumerable<Test262File>
 
         targetFiles = targetFiles
             .Where(x => x.IndexOf("_FIXTURE", StringComparison.OrdinalIgnoreCase) == -1);
-
-        foreach (var filePath in targetFiles)
-        {
-            await foreach (var testCase in Test262File.FromFile(filePath, cancellationToken))
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                yield return testCase;
-            }
-        }
+        return targetFiles;
     }
 }
 

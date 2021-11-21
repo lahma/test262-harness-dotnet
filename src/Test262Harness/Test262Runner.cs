@@ -11,18 +11,13 @@ public sealed class Test262Runner
 
     public TestExecutionSummary Run(params Test262File[] files)
     {
-        var summary = new TestExecutionSummary();
-        foreach (var file in files)
-        {
-            RunTest(file, summary);
-        }
-        return summary;
+        return Run((IEnumerable<Test262File>) files);
     }
 
-    public async Task<TestExecutionSummary> Run(IAsyncEnumerable<Test262File> files)
+    public TestExecutionSummary Run(IEnumerable<Test262File> files)
     {
         var summary = new TestExecutionSummary();
-        await foreach (var file in files)
+        foreach (var file in files)
         {
             RunTest(file, summary);
             _options.OnTestExecuted(file);

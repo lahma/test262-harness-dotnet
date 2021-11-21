@@ -1,4 +1,4 @@
-using System.Runtime.CompilerServices;
+using Cysharp.Text;
 using YamlDotNet.RepresentationModel;
 
 namespace Test262Harness;
@@ -14,26 +14,15 @@ public sealed class Test262File : IEquatable<Test262File>
     private const string YamlSectionStartMarker = "/*---";
     private const string YamlSectionEndMarker = "---*/";
 
-    private readonly int _yamlStart;
-    private readonly int _yamlEnd;
-
     private string[] _features = Array.Empty<string>();
     private string[] _flags = Array.Empty<string>();
     private string[] _includes = Array.Empty<string>();
     private string[] _locale = Array.Empty<string>();
 
-    private Test262File(
-        string fileName,
-        string contents,
-        int yamlStart,
-        int yamlEnd)
+    private Test262File(string fileName)
     {
         FileName = fileName;
-        _yamlStart = yamlStart;
-        _yamlEnd = yamlEnd;
-        Contents = contents;
     }
-
 
     /// <summary>
     /// The root-relative filename separated with slashes.
@@ -98,19 +87,14 @@ public sealed class Test262File : IEquatable<Test262File>
     public NegativeTestCase? NegativeTestCase { get; private set; }
 
     /// <summary>
-    /// The full contents of the file.
+    /// The actual code to be interpreted.
     /// </summary>
-    public string Contents { get; }
+    public string Program { get; private set; } = "";
 
     /// <summary>
     /// The copyright block of the test.
     /// </summary>
-    public ReadOnlySpan<char> Copyright => Contents.AsSpan(0, _yamlStart);
-
-    /// <summary>
-    /// The actual code to be interpreted.
-    /// </summary>
-    public ReadOnlySpan<char> Program => Contents.AsSpan(_yamlEnd);
+    public string Copyright { get; private set; } = "";
 
     public bool Strict { get; private set; }
 
@@ -121,9 +105,7 @@ public sealed class Test262File : IEquatable<Test262File>
     /// </summary>
     public ProgramType Type { get; private set; } = ProgramType.Script;
 
-    public static async IAsyncEnumerable<Test262File> FromFile(
-        string filePath,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    public static IEnumerable<Test262File> FromFile(string filePath)
     {
         var testPathIndex = filePath.LastIndexOf("\\test\\", StringComparison.OrdinalIgnoreCase);
         if (testPathIndex < 0)
@@ -140,17 +122,35 @@ public sealed class Test262File : IEquatable<Test262File>
         var normalizedTestFileNamePath = filePath.Substring(testPathIndex + 1).Replace('\\', '/');
 
         using var reader = new StreamReader(File.OpenRead(filePath));
-        var content = await reader.ReadToEndAsync();
+        using var copyright = ZString.CreateStringBuilder();
 
-        var yamlSectionStart = content.IndexOf(YamlSectionStartMarker, StringComparison.OrdinalIgnoreCase) + YamlSectionStartMarker.Length;
-        var yamlSectionEnd = content.IndexOf(YamlSectionEndMarker, StringComparison.OrdinalIgnoreCase);
+        string? line;
+        while ((line = reader.ReadLine()) != null && (string.IsNullOrWhiteSpace(line) || line.Trim().StartsWith("//")))
+        {
+            copyright.AppendLine(line);
+        }
 
-        if (yamlSectionStart < 0 || yamlSectionEnd < 0)
+        while (line != null && !line.StartsWith(YamlSectionStartMarker))
+        {
+            line = reader.ReadLine();
+        }
+
+        if (line is null)
         {
             throw new ArgumentException($"Test case {normalizedTestFileNamePath} is invalid, cannot find YAML section.");
         }
 
-        var yaml = content.Substring(yamlSectionStart, yamlSectionEnd - yamlSectionStart);
+        using var yamlBuilder = ZString.CreateStringBuilder();
+        while ((line = reader.ReadLine()) != null && !line.Trim().StartsWith(YamlSectionEndMarker))
+        {
+            yamlBuilder.AppendLine(line);
+        }
+
+        var yaml = yamlBuilder.ToString();
+        if (string.IsNullOrWhiteSpace(yaml))
+        {
+            throw new ArgumentException($"Test case {normalizedTestFileNamePath} is invalid, cannot find YAML section.");
+        }
 
         var yamlStream = new YamlStream();
         yamlStream.Load(new StringReader(yaml));
@@ -158,11 +158,9 @@ public sealed class Test262File : IEquatable<Test262File>
 
         var onlyStrict = false;
         var noStrict = false;
-        var test = new Test262File(normalizedTestFileNamePath, yaml, yamlSectionStart, yamlSectionEnd);
+        var test = new Test262File(normalizedTestFileNamePath);
         foreach (var node in (YamlMappingNode) document.RootNode)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
             var scalar = (YamlScalarNode) node.Key;
             var key = scalar.Value;
             switch (key)
@@ -218,19 +216,19 @@ public sealed class Test262File : IEquatable<Test262File>
             }
         }
 
+        test.Copyright = copyright.ToString();
+        test.Program = reader.ReadToEnd();
 
         // we produce two results, non-strict and strict based on configuration
         // this follows the tests262 stream logic
         if (test.Type == ProgramType.Script && !onlyStrict)
         {
-            cancellationToken.ThrowIfCancellationRequested();
             yield return test;
         }
 
         if (!noStrict)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            yield return test.AsStrict();;
+            yield return test.AsStrict();
         }
     }
 
@@ -238,6 +236,7 @@ public sealed class Test262File : IEquatable<Test262File>
     {
         var clone = (Test262File) this.MemberwiseClone();
         clone.Strict = true;
+        clone.Program = "\"use strict\";" + Environment.NewLine + Program;
         return clone;
     }
 
