@@ -1,9 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>netstandard2.0</TargetFramework>
+        <TargetFramework>netcoreapp3.1</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <OutputType>Exe</OutputType>
     </PropertyGroup>
 
     <ItemGroup>
@@ -11,6 +12,10 @@
       <PackageReference Include="JavaScriptEngineSwitcher.Jurassic" Version="3.13.0" />
       <PackageReference Include="JavaScriptEngineSwitcher.NiL" Version="3.12.4" />
       <PackageReference Include="Spectre.Console" Version="0.42.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Test262Harness\Test262Harness.csproj" />
     </ItemGroup>
 
 </Project>

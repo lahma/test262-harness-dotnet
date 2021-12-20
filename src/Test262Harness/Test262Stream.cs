@@ -1,4 +1,6 @@
 using System.Collections;
+using Zio;
+using Zio.FileSystems;
 
 namespace Test262Harness;
 
@@ -24,20 +26,49 @@ public sealed class Test262Stream : IEnumerable<Test262File>
     /// <param name="baseDirectory">
     /// Base directory to use, this should have "harness" and "test" sub-directories like in https://github.com/tc39/test262 .
     /// </param>
+    /// <param name="configure">
+    /// Callback to call to configure options.
+    /// </param>
     /// <returns>A stream that can be enumerated.</returns>
-    public static Test262Stream Create(string baseDirectory)
+    public static Test262Stream FromDirectory(string baseDirectory, Action<Test262StreamOptions>? configure = null)
     {
-        return Create(new Test262StreamOptions(baseDirectory));
+        var fileSystem = new ReadOnlyFileSystem(new SubFileSystem(new PhysicalFileSystem(), baseDirectory));
+        return FromFileSystem(fileSystem, configure);
     }
 
     /// <summary>
-    /// Creates an enumerable stream for test cases from given list of files.
+    /// Creates an enumerable stream for test cases from given zip archive.
     /// </summary>
-    /// <param name="files"> Files to use. </param>
+    /// <param name="file">
+    /// File to load archive from.
+    /// </param>
+    /// <param name="subDirectory">
+    /// Sub-directory inside the archive to use.
+    /// </param>
+    /// <param name="configure">
+    /// Callback to call to configure options.
+    /// </param>
     /// <returns>A stream that can be enumerated.</returns>
-    public static Test262Stream Create(IEnumerable<string> files)
+    public static Test262Stream FromZipArchive(string file, string subDirectory, Action<Test262StreamOptions>? configure = null)
     {
-        return Create(new Test262StreamOptions(files));
+        return FromFileSystem(ZipArchiveFileSystem.Create(file, subDirectory), configure);
+    }
+
+    /// <summary>
+    /// Creates an enumerable stream for test cases from given file system abstraction.
+    /// </summary>
+    /// <param name="fileSystem">
+    /// File system instance to use.
+    /// </param>
+    /// <param name="configure">
+    /// Callback to call to configure options.
+    /// </param>
+    /// <returns>A stream that can be enumerated.</returns>
+    public static Test262Stream FromFileSystem(IFileSystem fileSystem, Action<Test262StreamOptions>? configure = null)
+    {
+        var options = new Test262StreamOptions(fileSystem);
+        configure?.Invoke(options);
+        return Create(options);
     }
 
     /// <summary>
@@ -45,7 +76,7 @@ public sealed class Test262Stream : IEnumerable<Test262File>
     /// </summary>
     /// <param name="options">Options to use.</param>
     /// <returns>A stream that can be enumerated.</returns>
-    public static Test262Stream Create(Test262StreamOptions options)
+    private static Test262Stream Create(Test262StreamOptions options)
     {
         options.Validate();
         return new Test262Stream(options);
@@ -58,16 +89,14 @@ public sealed class Test262Stream : IEnumerable<Test262File>
 
     public IEnumerator<Test262File> GetEnumerator()
     {
-        var targetFiles = _options.Files ?? GetTargetFiles();
-
-        targetFiles = targetFiles
-            .Where(x => x.IndexOf("_FIXTURE", StringComparison.OrdinalIgnoreCase) == -1);
+        var targetFiles = GetTestFiles();
 
         foreach (var filePath in targetFiles)
         {
-            foreach (var testCase in Test262File.FromFile(filePath))
+            using var stream = _options.FileSystem.OpenFile(filePath.FullName, FileMode.Open, FileAccess.Read, FileShare.Read);
+            foreach (var testCase in Test262File.FromStream(stream, filePath.FullName))
             {
-                if (_options.Filter(testCase))
+                if (_options.TestCaseFilter(testCase))
                 {
                     yield return testCase;
                 }
@@ -75,18 +104,16 @@ public sealed class Test262Stream : IEnumerable<Test262File>
         }
     }
 
-    private IEnumerable<string> GetTargetFiles()
+    private IEnumerable<FileSystemItem> GetTestFiles()
     {
-        var testDirectory = Path.Combine(_options.BaseDirectory!, "test");
-        var subDirectories = _options.SubDirectories;
+        bool SearchPredicate(ref FileSystemItem item) => item.FullName.EndsWith(".js") && item.FullName.IndexOf("_FIXTURE", StringComparison.OrdinalIgnoreCase) == -1;
 
-        IEnumerable<string> targetFiles = Array.Empty<string>();
-        foreach (var subDirectory in subDirectories)
+        IEnumerable<FileSystemItem> result = Array.Empty<FileSystemItem>();
+        foreach (var subDirectory in _options.SubDirectories)
         {
-            targetFiles = targetFiles.Concat(Directory.GetFiles(Path.Combine(testDirectory, subDirectory), "*.*", SearchOption.AllDirectories));
+            result = result.Concat(_options.FileSystem.EnumerateItems("/test/" + subDirectory, SearchOption.AllDirectories, SearchPredicate));
         }
 
-        return targetFiles;
+        return result;
     }
 }
-

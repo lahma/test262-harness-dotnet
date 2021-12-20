@@ -121,7 +121,12 @@ public sealed class Test262File : IEquatable<Test262File>
         // the name we refer as rooted
         var normalizedTestFileNamePath = filePath.Substring(testPathIndex + 1).Replace('\\', '/');
 
-        using var reader = new StreamReader(File.OpenRead(filePath));
+        return FromStream(File.OpenRead(filePath), normalizedTestFileNamePath);
+    }
+
+    public static IEnumerable<Test262File> FromStream(Stream stream, string fileName)
+    {
+        using var reader = new StreamReader(stream);
         using var copyright = ZString.CreateStringBuilder();
 
         string? line;
@@ -137,7 +142,7 @@ public sealed class Test262File : IEquatable<Test262File>
 
         if (line is null)
         {
-            throw new ArgumentException($"Test case {normalizedTestFileNamePath} is invalid, cannot find YAML section.");
+            throw new ArgumentException($"Test case {fileName} is invalid, cannot find YAML section.");
         }
 
         using var yamlBuilder = ZString.CreateStringBuilder();
@@ -149,16 +154,24 @@ public sealed class Test262File : IEquatable<Test262File>
         var yaml = yamlBuilder.ToString();
         if (string.IsNullOrWhiteSpace(yaml))
         {
-            throw new ArgumentException($"Test case {normalizedTestFileNamePath} is invalid, cannot find YAML section.");
+            throw new ArgumentException($"Test case {fileName} is invalid, cannot find YAML section.");
         }
 
-        var yamlStream = new YamlStream();
-        yamlStream.Load(new StringReader(yaml));
-        var document = yamlStream.Documents[0];
+        YamlDocument document;
+        try
+        {
+            var yamlStream = new YamlStream();
+            yamlStream.Load(new StringReader(yaml));
+            document = yamlStream.Documents[0];
+        }
+        catch (Exception ex)
+        {
+            throw new ArgumentException($"Could not lod YAML content from file {fileName}: " + ex.Message, ex);
+        }
 
         var onlyStrict = false;
         var noStrict = false;
-        var test = new Test262File(normalizedTestFileNamePath);
+        var test = new Test262File(fileName);
         foreach (var node in (YamlMappingNode) document.RootNode)
         {
             var scalar = (YamlScalarNode) node.Key;
