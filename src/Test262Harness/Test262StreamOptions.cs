@@ -26,8 +26,13 @@ public sealed class Test262StreamOptions
     /// </summary>
     public Func<Test262File, bool> TestCaseFilter { get; set; } = _ => true;
 
+    /// <summary>
+    /// If false Test262Stream will only return test case file as-is. Otherwise when testing requires also a non-strict
+    /// or a strict test case will be returned by appending "use strict;" at the beginning of extra text file. Defaults to: true.
+    /// </summary>
+    public bool GenerateInverseStrictTestCase { get; set; } = true;
+
     internal void Validate()
     {
-
     }
 }

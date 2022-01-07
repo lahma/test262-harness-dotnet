@@ -31,6 +31,9 @@ partial class Build : NukeBuild
 
     const string MainBranch = "main";
 
+    [Parameter("Version")]
+    readonly string Version = "0.0.0";
+
     AbsolutePath SourceDirectory => RootDirectory / "src";
     AbsolutePath TestsDirectory => RootDirectory / "tests";
     AbsolutePath ArtifactsDirectory => RootDirectory / "artifacts";
@@ -61,7 +64,8 @@ partial class Build : NukeBuild
                 .SetAssemblyVersion(GitVersion.AssemblySemVer)
                 .SetFileVersion(GitVersion.AssemblySemFileVer)
                 .SetInformationalVersion(GitVersion.InformationalVersion)
-                .EnableNoRestore());
+                .EnableNoRestore()
+            );
         });
 
     Target Test => _ => _
@@ -81,7 +85,9 @@ partial class Build : NukeBuild
         {
             DotNetPack(s => s
                 .SetConfiguration(Configuration)
-                .SetOutputDirectory(ArtifactsDirectory));
+                .SetOutputDirectory(ArtifactsDirectory)
+                .SetVersion(Version)
+            );
         });
 
 }

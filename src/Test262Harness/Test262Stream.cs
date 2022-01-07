@@ -85,7 +85,7 @@ public sealed class Test262Stream
         foreach (var filePath in targetFiles)
         {
             using var stream = _options.FileSystem.OpenFile(filePath.FullName, FileMode.Open, FileAccess.Read, FileShare.Read);
-            foreach (var testCase in Test262File.FromStream(stream, filePath.FullName))
+            foreach (var testCase in Test262File.FromStream(stream, filePath.FullName, _options.GenerateInverseStrictTestCase))
             {
                 if (testCaseFilter(testCase))
                 {
@@ -102,7 +102,7 @@ public sealed class Test262Stream
         foreach (var filePath in targetFiles)
         {
             using var stream = _options.FileSystem.OpenFile(filePath.FullName, FileMode.Open, FileAccess.Read, FileShare.Read);
-            foreach (var testCase in Test262File.FromStream(stream, filePath.FullName))
+            foreach (var testCase in Test262File.FromStream(stream, filePath.FullName, generateInverseStrictTestCase: false))
             {
                 yield return testCase;
             }

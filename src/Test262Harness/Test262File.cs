@@ -105,7 +105,7 @@ public sealed class Test262File : IEquatable<Test262File>
     /// </summary>
     public ProgramType Type { get; private set; } = ProgramType.Script;
 
-    public static IEnumerable<Test262File> FromFile(string filePath)
+    public static IEnumerable<Test262File> FromFile(string filePath, bool generateInverseStrictTestCase = true)
     {
         var testPathIndex = filePath.LastIndexOf("\\test\\", StringComparison.OrdinalIgnoreCase);
         if (testPathIndex < 0)
@@ -118,7 +118,7 @@ public sealed class Test262File : IEquatable<Test262File>
             throw new ArgumentException($"Given path {filePath} doesn't contain 'test'");
         }
 
-        return FromStream(File.OpenRead(filePath), filePath.Substring(testPathIndex + 1));
+        return FromStream(File.OpenRead(filePath), filePath.Substring(testPathIndex + 1), generateInverseStrictTestCase);
     }
 
     private static string NormalizedFilePath(string path)
@@ -126,7 +126,7 @@ public sealed class Test262File : IEquatable<Test262File>
         return path.Replace('\\', '/').TrimStart('/');
     }
 
-    public static IEnumerable<Test262File> FromStream(Stream stream, string fileName)
+    public static IEnumerable<Test262File> FromStream(Stream stream, string fileName, bool generateInverseStrictTestCase = true)
     {
         fileName = NormalizedFilePath(fileName);
 
@@ -235,6 +235,12 @@ public sealed class Test262File : IEquatable<Test262File>
 
         test.Copyright = copyright.ToString();
         test.Program = reader.ReadToEnd();
+
+        if (!generateInverseStrictTestCase)
+        {
+            yield return test;
+            yield break;
+        }
 
         // we produce two results, non-strict and strict based on configuration
         // this follows the tests262 stream logic
