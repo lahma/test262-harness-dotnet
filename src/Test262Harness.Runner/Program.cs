@@ -44,7 +44,7 @@ public static class Program
                 var readTask = ctx.AddTask("Loading tests", maxValue: 90_000);
                 readTask.StartTask();
 
-                Parallel.ForEach(stream, file =>
+                Parallel.ForEach(stream.GetTestFiles(), file =>
                 {
                     test262Files.Add(file);
                     readTask.Increment(1);
@@ -70,7 +70,7 @@ public static class Program
                     };
 
                     var executor = new Test262Runner(options);
-                    executor.Run(stream);
+                    executor.Run(stream.GetHarnessFiles());
                     testTask.StopTask();
                 }
             });
@@ -127,17 +127,16 @@ public static class Program
         AnsiConsole.WriteLine();
         AnsiConsole.WriteLine("Summary:");
 
-        AnsiConsole.MarkupLine(" [green]:check_mark: {0}[/] valid programs parsed without error", testExecutionSummary.AllowedSuccess.Count);
-        AnsiConsole.MarkupLine(" [green]::check_mark: {0}[/] invalid programs produced a parsing error", testExecutionSummary.AllowedFailure.Count);
-        AnsiConsole.MarkupLine(" [green]::check_mark: {0}[/] invalid programs did not produce a parsing error (and in allow file)", testExecutionSummary.AllowedFalsePositive.Count);
-        AnsiConsole.MarkupLine(" [green]::check_mark: {0}[/] valid programs produced a parsing error (and in allow file)", testExecutionSummary.AllowedFalseNegative.Count);
+        AnsiConsole.MarkupLine(" [green]:check_mark: {0}[/] valid programs parsed without error", testExecutionSummary.Allowed.Success.Count);
+        AnsiConsole.MarkupLine(" [green]::check_mark: {0}[/] invalid programs produced a parsing error", testExecutionSummary.Allowed.Failure.Count);
+        AnsiConsole.MarkupLine(" [green]::check_mark: {0}[/] invalid programs did not produce a parsing error (and in allow file)", testExecutionSummary.Allowed.FalsePositive.Count);
+        AnsiConsole.MarkupLine(" [green]::check_mark: {0}[/] valid programs produced a parsing error (and in allow file)", testExecutionSummary.Allowed.FalseNegative.Count);
 
-        var items = new (List<Test262File> Tests, string Label)[]
+        var items = new (ConcurrentBag<Test262File> Tests, string Label)[]
         {
-            (testExecutionSummary.DisallowedSuccess, "valid programs parsed without error (in violation of the whitelist file)"),
-            (testExecutionSummary.DisallowedFailure, "invalid programs produced a parsing error (in violation of the whitelist file)"),
-            (testExecutionSummary.DisallowedFalsePositive, "invalid programs did not produce a parsing error (without a corresponding entry in the whitelist file)"),
-            (testExecutionSummary.DisallowedFalseNegative, "valid programs produced a parsing error (without a corresponding entry in the whitelist file)")
+            (testExecutionSummary.Disallowed.Failure, "invalid programs produced a parsing error (in violation of the whitelist file)"),
+            (testExecutionSummary.Disallowed.FalsePositive, "invalid programs did not produce a parsing error (without a corresponding entry in the whitelist file)"),
+            (testExecutionSummary.Disallowed.FalseNegative, "valid programs produced a parsing error (without a corresponding entry in the whitelist file)")
         };
 
         if (testExecutionSummary.HasProblems)

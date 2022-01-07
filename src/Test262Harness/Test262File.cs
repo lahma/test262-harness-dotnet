@@ -118,14 +118,18 @@ public sealed class Test262File : IEquatable<Test262File>
             throw new ArgumentException($"Given path {filePath} doesn't contain 'test'");
         }
 
-        // the name we refer as rooted
-        var normalizedTestFileNamePath = filePath.Substring(testPathIndex + 1).Replace('\\', '/');
+        return FromStream(File.OpenRead(filePath), filePath.Substring(testPathIndex + 1));
+    }
 
-        return FromStream(File.OpenRead(filePath), normalizedTestFileNamePath);
+    private static string NormalizedFilePath(string path)
+    {
+        return path.Replace('\\', '/').TrimStart('/');
     }
 
     public static IEnumerable<Test262File> FromStream(Stream stream, string fileName)
     {
+        fileName = NormalizedFilePath(fileName);
+
         using var reader = new StreamReader(stream);
         using var copyright = ZString.CreateStringBuilder();
 

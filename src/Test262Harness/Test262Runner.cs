@@ -31,7 +31,7 @@ public sealed class Test262Runner
 
     private void RunTest(Test262File test262File, TestExecutionSummary testExecutionSummary)
     {
-        var shouldThrow = test262File.NegativeTestCase?.Type == ExpectedErrorType.SyntaxError;
+        var shouldThrow = _options.ShouldThrow(test262File);
 
         try
         {
@@ -41,31 +41,51 @@ public sealed class Test262Runner
             {
                 if (_options.IsIgnored(test262File))
                 {
-                    testExecutionSummary.AllowedFalsePositive.Add(test262File);
+                    testExecutionSummary.Allowed.FalsePositive.Add(test262File);
                 }
                 else
                 {
-                    testExecutionSummary.DisallowedSuccess.Add(test262File);
+                    testExecutionSummary.Disallowed.FalsePositive.Add(test262File);
                 }
             }
             else
             {
-                testExecutionSummary.AllowedSuccess.Add(test262File);
+                testExecutionSummary.Allowed.Success.Add(test262File);
             }
         }
         catch (Exception ex)
         {
-            if (shouldThrow && _options.IsParseError(ex))
+            var validError = test262File.NegativeTestCase?.Phase == TestingPhase.Parse && _options.IsParseError(ex)
+                             || test262File.NegativeTestCase?.Phase == TestingPhase.Resolution && _options.IsResolutionError(ex)
+                             || test262File.NegativeTestCase?.Phase == TestingPhase.Runtime && _options.IsRuntimeError(ex);
+
+            if (!validError)
             {
-                testExecutionSummary.AllowedFailure.Add(test262File);
+                // unhandled
+                if (_options.IsIgnored(test262File))
+                {
+                    testExecutionSummary.Allowed.FalseNegative.Add(test262File);
+                }
+                else
+                {
+                    testExecutionSummary.Disallowed.Failure.Add(test262File);
+                }
             }
-            if (_options.IsIgnored(test262File))
+            else if (!shouldThrow)
             {
-                testExecutionSummary.AllowedFalseNegative.Add(test262File);
+                if (_options.IsIgnored(test262File))
+                {
+                    testExecutionSummary.Allowed.FalseNegative.Add(test262File);
+                }
+                else
+                {
+                    testExecutionSummary.Disallowed.FalseNegative.Add(test262File);
+                }
             }
             else
             {
-                testExecutionSummary.DisallowedFalseNegative.Add(test262File);
+                // valid and should throw
+                testExecutionSummary.Allowed.Failure.Add(test262File);
             }
         }
     }

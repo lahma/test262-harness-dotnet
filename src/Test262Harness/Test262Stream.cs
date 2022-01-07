@@ -1,4 +1,3 @@
-using System.Collections;
 using Zio;
 using Zio.FileSystems;
 
@@ -11,7 +10,7 @@ namespace Test262Harness;
 /// Single test case file can produce either one or two <see cref="Test262File"/> instances based on whether it's
 /// a module (always one) or a script file (two if both strict and non-strict mode will be tested).
 /// </remarks>
-public sealed class Test262Stream : IEnumerable<Test262File>
+public sealed class Test262Stream
 {
     private readonly Test262StreamOptions _options;
 
@@ -42,12 +41,8 @@ public sealed class Test262Stream : IEnumerable<Test262File>
     /// <param name="file">
     /// File to load archive from.
     /// </param>
-    /// <param name="subDirectory">
-    /// Sub-directory inside the archive to use.
-    /// </param>
-    /// <param name="configure">
-    /// Callback to call to configure options.
-    /// </param>
+    /// <param name="subDirectory">Sub-directory inside the archive to use.</param>
+    /// <param name="configure">Callback to call to configure options.</param>
     /// <returns>A stream that can be enumerated.</returns>
     public static Test262Stream FromZipArchive(string file, string subDirectory, Action<Test262StreamOptions>? configure = null)
     {
@@ -82,21 +77,17 @@ public sealed class Test262Stream : IEnumerable<Test262File>
         return new Test262Stream(options);
     }
 
-    IEnumerator IEnumerable.GetEnumerator()
+    public IEnumerable<Test262File> GetTestFiles(string[]? subDirectories = null, Func<Test262File, bool>? testCaseFilter = null)
     {
-        return GetEnumerator();
-    }
+        var targetFiles = EnumerateTestFiles(subDirectories);
 
-    public IEnumerator<Test262File> GetEnumerator()
-    {
-        var targetFiles = GetTestFiles();
-
+        testCaseFilter ??= _options.TestCaseFilter;
         foreach (var filePath in targetFiles)
         {
             using var stream = _options.FileSystem.OpenFile(filePath.FullName, FileMode.Open, FileAccess.Read, FileShare.Read);
             foreach (var testCase in Test262File.FromStream(stream, filePath.FullName))
             {
-                if (_options.TestCaseFilter(testCase))
+                if (testCaseFilter(testCase))
                 {
                     yield return testCase;
                 }
@@ -104,16 +95,41 @@ public sealed class Test262Stream : IEnumerable<Test262File>
         }
     }
 
-    private IEnumerable<FileSystemItem> GetTestFiles()
+    public IEnumerable<Test262File> GetHarnessFiles()
     {
+        var targetFiles = EnumerateHarnessFiles();
+
+        foreach (var filePath in targetFiles)
+        {
+            using var stream = _options.FileSystem.OpenFile(filePath.FullName, FileMode.Open, FileAccess.Read, FileShare.Read);
+            foreach (var testCase in Test262File.FromStream(stream, filePath.FullName))
+            {
+                yield return testCase;
+            }
+        }
+    }
+
+    private IEnumerable<FileSystemItem> EnumerateTestFiles(string[]? subDirectories = null)
+    {
+        subDirectories ??= _options.SubDirectories;
+
         bool SearchPredicate(ref FileSystemItem item) => item.FullName.EndsWith(".js") && item.FullName.IndexOf("_FIXTURE", StringComparison.OrdinalIgnoreCase) == -1;
 
         IEnumerable<FileSystemItem> result = Array.Empty<FileSystemItem>();
-        foreach (var subDirectory in _options.SubDirectories)
+        foreach (var subDirectory in subDirectories)
         {
             result = result.Concat(_options.FileSystem.EnumerateItems("/test/" + subDirectory, SearchOption.AllDirectories, SearchPredicate));
         }
 
         return result;
+    }
+
+    public IEnumerable<FileSystemItem> EnumerateHarnessFiles()
+    {
+        return _options.FileSystem.EnumerateItems(
+            "/harness",
+            SearchOption.TopDirectoryOnly,
+            (ref FileSystemItem item) => item.FullName.EndsWith(".js", StringComparison.OrdinalIgnoreCase)
+        );
     }
 }
