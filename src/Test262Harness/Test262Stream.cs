@@ -12,12 +12,15 @@ namespace Test262Harness;
 /// </remarks>
 public sealed class Test262Stream
 {
-    private readonly Test262StreamOptions _options;
-
     private Test262Stream(Test262StreamOptions options)
     {
-        _options = options;
+        Options = options;
     }
+
+    /// <summary>
+    /// Options that this stream was constructed with.
+    /// </summary>
+    public Test262StreamOptions Options { get; }
 
     /// <summary>
     /// Creates an enumerable stream for test cases rooted to given base directory.
@@ -77,19 +80,40 @@ public sealed class Test262Stream
         return new Test262Stream(options);
     }
 
+    /// <summary>
+    /// Returns specific test file from stream.
+    /// </summary>
+    /// <param name="fileName"></param>
+    /// <returns></returns>
+    public Test262File GetTestFile(string fileName)
+    {
+        var fileSystem = Options.FileSystem;
+        lock (fileSystem)
+        {
+            using var stream = fileSystem.OpenFile("/test/" + fileName, FileMode.Open, FileAccess.Read, FileShare.Read);
+            var test262Files = Test262File.FromStream(stream, fileName, false).Single();
+            return test262Files;
+        }
+    }
+
     public IEnumerable<Test262File> GetTestFiles(string[]? subDirectories = null, Func<Test262File, bool>? testCaseFilter = null)
     {
         var targetFiles = EnumerateTestFiles(subDirectories);
 
-        testCaseFilter ??= _options.TestCaseFilter;
-        foreach (var filePath in targetFiles)
+        var fileSystem = Options.FileSystem;
+        testCaseFilter ??= Options.TestCaseFilter;
+
+        lock (fileSystem)
         {
-            using var stream = _options.FileSystem.OpenFile(filePath.FullName, FileMode.Open, FileAccess.Read, FileShare.Read);
-            foreach (var testCase in Test262File.FromStream(stream, filePath.FullName, _options.GenerateInverseStrictTestCase))
+            foreach (var filePath in targetFiles)
             {
-                if (testCaseFilter(testCase))
+                using var stream = fileSystem.OpenFile(filePath.FullName, FileMode.Open, FileAccess.Read, FileShare.Read);
+                foreach (var testCase in Test262File.FromStream(stream, filePath.FullName, Options.GenerateInverseStrictTestCase))
                 {
-                    yield return testCase;
+                    if (testCaseFilter(testCase))
+                    {
+                        yield return testCase;
+                    }
                 }
             }
         }
@@ -97,28 +121,32 @@ public sealed class Test262Stream
 
     public IEnumerable<Test262File> GetHarnessFiles()
     {
-        var targetFiles = EnumerateHarnessFiles();
-
-        foreach (var filePath in targetFiles)
+        var fileSystem = Options.FileSystem;
+        lock (fileSystem)
         {
-            using var stream = _options.FileSystem.OpenFile(filePath.FullName, FileMode.Open, FileAccess.Read, FileShare.Read);
-            foreach (var testCase in Test262File.FromStream(stream, filePath.FullName, generateInverseStrictTestCase: false))
+            var targetFiles = EnumerateHarnessFiles();
+
+            foreach (var filePath in targetFiles)
             {
-                yield return testCase;
+                using var stream = fileSystem.OpenFile(filePath.FullName, FileMode.Open, FileAccess.Read, FileShare.Read);
+                foreach (var testCase in Test262File.FromStream(stream, filePath.FullName, generateInverseStrictTestCase: false))
+                {
+                    yield return testCase;
+                }
             }
         }
     }
 
     private IEnumerable<FileSystemItem> EnumerateTestFiles(string[]? subDirectories = null)
     {
-        subDirectories ??= _options.SubDirectories;
+        subDirectories ??= Options.SubDirectories;
 
         bool SearchPredicate(ref FileSystemItem item) => item.FullName.EndsWith(".js") && item.FullName.IndexOf("_FIXTURE", StringComparison.OrdinalIgnoreCase) == -1;
 
         IEnumerable<FileSystemItem> result = Array.Empty<FileSystemItem>();
         foreach (var subDirectory in subDirectories)
         {
-            result = result.Concat(_options.FileSystem.EnumerateItems("/test/" + subDirectory, SearchOption.AllDirectories, SearchPredicate));
+            result = result.Concat(Options.FileSystem.EnumerateItems("/test/" + subDirectory, SearchOption.AllDirectories, SearchPredicate));
         }
 
         return result;
@@ -126,7 +154,7 @@ public sealed class Test262Stream
 
     public IEnumerable<FileSystemItem> EnumerateHarnessFiles()
     {
-        return _options.FileSystem.EnumerateItems(
+        return Options.FileSystem.EnumerateItems(
             "/harness",
             SearchOption.TopDirectoryOnly,
             (ref FileSystemItem item) => item.FullName.EndsWith(".js", StringComparison.OrdinalIgnoreCase)

@@ -2,6 +2,8 @@ using Zio;
 
 namespace Test262Harness;
 
+public delegate void LogDelegate(string message, params object[] args);
+
 public sealed class Test262StreamOptions
 {
     public Test262StreamOptions(IFileSystem fileSystem)
@@ -31,6 +33,16 @@ public sealed class Test262StreamOptions
     /// or a strict test case will be returned by appending "use strict;" at the beginning of extra text file. Defaults to: true.
     /// </summary>
     public bool GenerateInverseStrictTestCase { get; set; } = true;
+
+    /// <summary>
+    /// Logger to call when informing about progress.
+    /// </summary>
+    public LogDelegate LogInfo { get; set; } = Console.WriteLine;
+
+    /// <summary>
+    /// Logger to call when informing about error.
+    /// </summary>
+    public LogDelegate LogError { get; set; } = Console.Error.WriteLine;
 
     internal void Validate()
     {

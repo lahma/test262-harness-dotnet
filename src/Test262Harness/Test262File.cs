@@ -255,8 +255,16 @@ public sealed class Test262File : IEquatable<Test262File>
         }
     }
 
-    private Test262File AsStrict()
+    /// <summary>
+    /// Creates strict version of the test case by adding `use strict`; directive to the beginning of the program.
+    /// </summary>
+    public Test262File AsStrict()
     {
+        if (Strict)
+        {
+            return this;
+        }
+
         var clone = (Test262File) this.MemberwiseClone();
         clone.Strict = true;
         clone.Program = "\"use strict\";" + Environment.NewLine + Program;

@@ -23,14 +23,22 @@ public static class Test262StreamExtensions
         bool extract = false,
         Action<Test262StreamOptions>? configure = null)
     {
+        if (string.IsNullOrWhiteSpace(commitSha))
+        {
+            throw new ArgumentException("Invalid commit SHA: " + commitSha, nameof(commitSha));
+        }
+
         tempPath ??= Path.GetTempPath();
         var tempFile = Path.Combine(tempPath, $"test262-{commitSha}.zip");
+
+        var tempOptions = new Test262StreamOptions(null!);
+        configure?.Invoke(tempOptions);
 
         var ok = false;
         var delete = false;
         if (File.Exists(tempFile))
         {
-            Console.WriteLine($"Found test262 repository archive from {tempFile}");
+            tempOptions.LogInfo("Found test262 repository archive from {0}", tempFile);
             try
             {
                 using var _ = ZipFile.OpenRead(tempFile);
@@ -38,7 +46,7 @@ public static class Test262StreamExtensions
             }
             catch
             {
-                Console.Error.WriteLine("Could not open the archive, deleting it and downloading again.");
+                tempOptions.LogError("Could not open the archive, deleting it and downloading again.");
                 ok = false;
                 delete = true;
             }
@@ -46,14 +54,14 @@ public static class Test262StreamExtensions
 
         if (!ok)
         {
-            await Download(commitSha, delete, tempFile);
+            await Download(commitSha, delete, tempFile, tempOptions.LogInfo);
         }
 
         var zipSubDirectory = "test262-" + commitSha;
 
         if (extract)
         {
-            Console.WriteLine("Extracting archive...");
+            tempOptions.LogInfo("Extracting archive...");
             ZipFile.ExtractToDirectory(tempFile, tempPath);
 
             // zio wants /mnt/c format
@@ -62,7 +70,7 @@ public static class Test262StreamExtensions
                 .Replace(@"D:\", "/mnt/d/")
                 .Replace(@"E:\", "/mnt/e/");
 
-            Console.WriteLine($"Building test262stream from path {sourcePath}");
+            tempOptions.LogInfo("Building test262stream from path {0}", sourcePath);
 
             return Test262Stream.FromDirectory(sourcePath);
         }
@@ -70,7 +78,11 @@ public static class Test262StreamExtensions
         return Test262Stream.FromZipArchive(tempFile, zipSubDirectory, configure);
     }
 
-    private static async Task Download(string commitSha, bool delete, string tempFile)
+    private static async Task Download(
+        string commitSha,
+        bool delete,
+        string tempFile,
+        LogDelegate logger)
     {
         await _downloadLock.WaitAsync();
 
@@ -83,7 +95,7 @@ public static class Test262StreamExtensions
 
             var uri = $"https://github.com/tc39/test262/archive/{commitSha}.zip";
 
-            Console.WriteLine($"Loading test262 repository archive from {uri}");
+            logger($"Loading test262 repository archive from {uri}");
 
             var sw = Stopwatch.StartNew();
 
@@ -96,7 +108,7 @@ public static class Test262StreamExtensions
 
             sw.Stop();
 
-            Console.WriteLine($"File downloaded and saved to {tempFile} in {sw.Elapsed}");
+            logger($"File downloaded and saved to {tempFile} in {sw.Elapsed}");
         }
         finally
         {

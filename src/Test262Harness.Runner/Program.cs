@@ -19,7 +19,20 @@ public static class Program
             return -1;
         }
 
-        var stream = Test262Stream.FromDirectory(rootTestDirectory);
+        var stream = Test262Stream.FromDirectory(rootTestDirectory, options =>
+        {
+            options.LogInfo = (s, objects) =>
+            {
+                s = s.Replace("{0}", "[yellow]{0}[/]").Replace("{1}", "[yellow]{1}[/]");
+                AnsiConsole.MarkupLine(s, objects);
+            };
+            options.LogError = (s, objects) =>
+            {
+                s = "[red]" + s + "[/]";
+                s = s.Replace("{0}", "[yellow]{0}[/]").Replace("{1}", "[yellow]{1}[/]");
+                AnsiConsole.MarkupLine(s, objects);
+            };
+        });
 
         // we materialize to give better feedback on progress
         var test262Files = new ConcurrentBag<Test262File>();
