@@ -20,7 +20,11 @@ internal sealed class GenerateCommand : AsyncCommand<GenerateCommand.Settings>
     {
         [Description("GitHub SHA for test262 repository commit")]
         [CommandOption("--test262Sha")]
-        public string? GitSha { get; set; }
+        public string? SuiteGitSha { get; set; }
+
+        [Description("Directory for test262 repository files")]
+        [CommandOption("--test262Directory")]
+        public string? SuiteDirectory { get; set; }
 
         [Description("Path to write files to")]
         [CommandOption("-t|--targetPath")]
@@ -64,9 +68,14 @@ internal sealed class GenerateCommand : AsyncCommand<GenerateCommand.Settings>
 
         options ??= new TestSuiteGeneratorOptions();
 
-        if (!string.IsNullOrWhiteSpace(settings.GitSha))
+        if (!string.IsNullOrWhiteSpace(settings.SuiteGitSha))
         {
-            options.GitSha = settings.GitSha;
+            options.SuiteGitSha = settings.SuiteGitSha;
+        }
+
+        if (!string.IsNullOrWhiteSpace(settings.SuiteDirectory))
+        {
+            options.SuiteDirectory = settings.SuiteDirectory;
         }
 
         if (settings.TestFramework != null)
@@ -84,7 +93,7 @@ internal sealed class GenerateCommand : AsyncCommand<GenerateCommand.Settings>
             options.Namespace = settings.Namespace;
         }
 
-        var test262Stream = await Test262StreamExtensions.FromGitHub(options.GitSha, configure: options =>
+        Action<Test262StreamOptions> configureOptions = options =>
         {
             options.LogInfo = (s, objects) =>
             {
@@ -97,14 +106,32 @@ internal sealed class GenerateCommand : AsyncCommand<GenerateCommand.Settings>
                 s = s.Replace("{0}", "[yellow]{0}[/]").Replace("{1}", "[yellow]{1}[/]");
                 AnsiConsole.MarkupLine(s, objects);
             };
-        });
+        };
+
+        Test262Stream test262Stream;
+        if (!string.IsNullOrWhiteSpace(options.SuiteGitSha))
+        {
+            AnsiConsole.MarkupLine($"Loading using GitHub repository at commit [yellow]{options.SuiteGitSha}[/]");
+            test262Stream = await Test262StreamExtensions.FromGitHub(options.SuiteGitSha, configure: configureOptions);
+        }
+        else if (!string.IsNullOrWhiteSpace(options.SuiteDirectory))
+        {
+            test262Stream = Test262Stream.FromDirectory(options.SuiteDirectory, configureOptions);
+            AnsiConsole.MarkupLine($"Loading from file repository at [yellow]{options.SuiteDirectory}[/]");
+        }
+        else
+        {
+            AnsiConsole.MarkupLine("[red]Need to provide either tests262 directory or commit SHA[/]");
+            return 1;
+        }
 
         var generator = new TestSuiteGenerator(options, usedSettingsFilePath);
-        await generator.Generate(test262Stream);
+        var totalCount = await generator.Generate(test262Stream);
 
         //await using var fileStream = File.Create(Path.Combine(options.TargetPath, "Test262Settings.settings.sample.json"));
         //await JsonSerializer.SerializeAsync(fileStream, options, new JsonSerializerOptions { WriteIndented = true });
-        //AnsiConsole.MarkupLine($"Total file size for [green]{searchPattern}[/] files in [green]{searchPath}[/]: [blue]{totalFileSize:N0}[/] bytes");
+
+        AnsiConsole.MarkupLine($"Generated [green]{totalCount}[/] test cases");
 
         return 0;
     }

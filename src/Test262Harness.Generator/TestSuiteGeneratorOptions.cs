@@ -4,7 +4,8 @@ namespace Test262Harness.TestSuite.Generator;
 
 public class TestSuiteGeneratorOptions
 {
-    public string GitSha { get; set; } = "";
+    public string SuiteGitSha { get; set; } = "";
+    public string SuiteDirectory { get; set; } = "";
 
     [JsonIgnore]
     public TestFramework TestFramework { get; set; } = TestFramework.NUnit;

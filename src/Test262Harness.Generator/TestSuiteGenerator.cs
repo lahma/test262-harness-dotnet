@@ -33,7 +33,7 @@ public class TestSuiteGenerator
             .ToArray();
     }
 
-    public async Task Generate(Test262Stream stream)
+    public async Task<int> Generate(Test262Stream stream)
     {
         var templateOptions = new TemplateOptions
         {
@@ -55,6 +55,7 @@ public class TestSuiteGenerator
 
         WriteFile("Tests262Harness.Test262Test.generated.cs", await bootstrapTemplate.RenderAsync(context));
 
+        var totalCount = 0;
         var (testTemplate, testHash) = await GetTemplate("Tests");
         foreach (var item in stream.Options.SubDirectories)
         {
@@ -128,7 +129,11 @@ public class TestSuiteGenerator
             SetCommonInfo(context, testHash);
 
             WriteFile($"Tests262Harness.Tests.{item}.generated.cs", await testTemplate.RenderAsync(context));
+
+            totalCount += model.TestCaseGroupings.Sum(x => Math.Max(1, x.TestCases.Count));
         }
+
+        return totalCount;
     }
 
     private void SetCommonInfo(TemplateContext context, string templateHash)
@@ -138,7 +143,8 @@ public class TestSuiteGenerator
         context.SetValue("CommandLine", Environment.CommandLine);
         context.SetValue("Version", typeof(TestSuiteGenerator).Assembly.GetName().Version);
         context.SetValue("SettingsFile", _usedSettingsFilePath ?? "<none>");
-        context.SetValue("GitSha", _options.GitSha);
+        context.SetValue("SuiteGitSha", _options.SuiteGitSha);
+        context.SetValue("SuiteDirectory", _options.SuiteDirectory);
         context.SetValue("TemplateSha", templateHash);
     }
 
