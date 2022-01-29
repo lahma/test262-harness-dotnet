@@ -23,18 +23,14 @@ public class {{ TestClassName }} : Test262Test
 {%- if testCollection.IgnoreReason %}
     [Test]
     [Ignore("{{ testCollection.IgnoreReason }}")]
-    public void {{ testCollection.Name }}(string test, bool strict)
+    public void {{ testCollection.Name }}()
+    {
+    }
 {%- else %}
     public void {{ testCollection.Name }}(string test, bool strict)
-{%- endif %}
     {
-        var testCase = State.Test262Stream.GetTestFile(test);
-        if (strict)
-        {
-            testCase = testCase.AsStrict();
-        }
-
-        RunTestCode(testCase);
+        RunTestCode(test, strict);
     }
+{%- endif %}
 {% endfor %}
 }

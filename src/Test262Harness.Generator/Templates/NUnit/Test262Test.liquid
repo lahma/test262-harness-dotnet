@@ -11,16 +11,48 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
+
 using NUnit.Framework.Internal;
+
 using Test262Harness;
 
 namespace {{ Namespace }};
 
-// this partial needs to be handled on consuming code side
+/// <summary>
+/// Global state for test run. Generated test suite requires that Test262Stream is initialized before tests start to run.
+/// </summary>
 public static partial class State
 {
+    /// <summary>
+    /// The GitHub SHA used to generate the test suite. Runner should initialize Test262Stream using this value.
+    /// </summary>
+    public const string GitHubSha = "{{ GitSha }}";
+
     public static Test262Stream Test262Stream { get; set; }
+
+    public static Test262File[] HarnessFiles { get; set; }
 }
+
+/// <summary>
+/// Handles initializing testing state.
+/// </summary>
+[SetUpFixture]
+public partial class TestHarness
+{
+    [OneTimeSetUp]
+    public async Task RunBeforeAnyTests()
+    {
+        var stream = await Test262StreamExtensions.FromGitHub(State.GitHubSha);
+        State.Test262Stream = stream;
+        State.HarnessFiles = State.Test262Stream.GetHarnessFiles().ToArray();
+
+        await InitializeCustomState();
+    }
+
+    private static partial Task InitializeCustomState();
+}
+
 
 [Timeout(20_000)]
 {% if Parallel -%}
@@ -28,8 +60,14 @@ public static partial class State
 {% endif -%}
 public abstract partial class Test262Test
 {
-    protected void RunTestCode(Test262File testCase)
+    protected void RunTestCode(string test, bool strict)
     {
+        var testCase = State.Test262Stream.GetTestFile(test);
+        if (strict)
+        {
+            testCase = testCase.AsStrict();
+        }
+
         var executor = BuildTestExecutor(testCase);
 
         string lastError = null;
