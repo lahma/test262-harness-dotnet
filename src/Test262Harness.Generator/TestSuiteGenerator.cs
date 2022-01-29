@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Fluid;
 using Fluid.Values;
 
@@ -38,13 +40,14 @@ public class TestSuiteGenerator
             return new ValueTask<FluidValue>(new StringValue(cleaned));
         });
 
-        var context = new TemplateContext(templateOptions);
-        SetCommonInfo(context);
+        var (bootstrapTemplate, bootstrapHash) = await GetTemplate("Test262Test");
 
-        var bootstrapTemplate = await GetTemplate("Test262Test");
+        var context = new TemplateContext(templateOptions);
+        SetCommonInfo(context, bootstrapHash);
+
         WriteFile("Tests262Harness.Test262Test.generated.cs", await bootstrapTemplate.RenderAsync(context));
 
-        var testTemplate = await GetTemplate("Tests");
+        var (testTemplate, testHash) = await GetTemplate("Tests");
         foreach (var item in stream.Options.SubDirectories)
         {
             var tests = stream.GetTestFiles(new [] { item }).ToList();
@@ -64,7 +67,6 @@ public class TestSuiteGenerator
 
             var model = new GeneratorModel
             {
-                GitSha = _options.GitSha,
                 TestClassName = ConversionUtilities.ConvertToUpperCamelCase(item) + "Tests",
                 Namespace = _options.Namespace,
                 TestCaseGroupings = tests
@@ -115,19 +117,21 @@ public class TestSuiteGenerator
             };
 
             context = new TemplateContext(model, templateOptions);
-            SetCommonInfo(context);
+            SetCommonInfo(context, testHash);
 
             WriteFile($"Tests262Harness.Tests.{item}.generated.cs", await testTemplate.RenderAsync(context));
         }
     }
 
-    private void SetCommonInfo(TemplateContext context)
+    private void SetCommonInfo(TemplateContext context, string templateHash)
     {
         context.SetValue("Namespace", _options.Namespace);
         context.SetValue("Parallel", _options.Parallel);
         context.SetValue("CommandLine", Environment.CommandLine);
         context.SetValue("Version", typeof(TestSuiteGenerator).Assembly.GetName().Version);
         context.SetValue("SettingsFile", _usedSettingsFilePath ?? "<none>");
+        context.SetValue("GitSha", _options.GitSha);
+        context.SetValue("TemplateSha", templateHash);
     }
 
     private string? GetExcludeReason(Test262File file)
@@ -161,7 +165,7 @@ public class TestSuiteGenerator
         return excludeReason;
     }
 
-    private async Task<IFluidTemplate> GetTemplate(string name)
+    private async Task<(IFluidTemplate Template, string Hash)> GetTemplate(string name)
     {
         var type = typeof(TestSuiteGenerator);
         var resourceName = $"{type.Namespace}.Templates.{_options.TestFramework}.{name}.liquid";
@@ -177,7 +181,10 @@ public class TestSuiteGenerator
             template = await stream.ReadToEndAsync();
         }
 
-        return _parser.Parse(template);
+        using var sha = new HMACSHA256();
+        var hash = BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(template))).Replace("-", "").ToLowerInvariant();
+
+        return (_parser.Parse(template), hash);
     }
 
     private void WriteFile(string fileName, string contents)

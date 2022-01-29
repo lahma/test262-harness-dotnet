@@ -2,7 +2,6 @@ namespace Test262Harness.TestSuite.Generator;
 
 public class GeneratorModel
 {
-    public string GitSha { get; set; } = "";
     public bool Parallel { get; set; } = true;
     public string Namespace { get; init; } = "";
 

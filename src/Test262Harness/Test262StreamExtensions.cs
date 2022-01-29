@@ -95,7 +95,7 @@ public static class Test262StreamExtensions
 
             var uri = $"https://github.com/tc39/test262/archive/{commitSha}.zip";
 
-            logger($"Loading test262 repository archive from {uri}");
+            logger("Loading test262 repository archive from {0}", uri);
 
             var sw = Stopwatch.StartNew();
 
@@ -108,7 +108,7 @@ public static class Test262StreamExtensions
 
             sw.Stop();
 
-            logger($"File downloaded and saved to {tempFile} in {sw.Elapsed}");
+            logger("File downloaded and saved to {0} in {1}", tempFile, sw.Elapsed);
         }
         finally
         {
