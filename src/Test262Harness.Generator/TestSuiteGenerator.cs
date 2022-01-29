@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Fluid;
 using Fluid.Values;
+using GlobExpressions;
 
 namespace Test262Harness.TestSuite.Generator;
 
@@ -13,16 +14,23 @@ public class TestSuiteGenerator
     private readonly Dictionary<string,string> _excludedFiles;
     private readonly Dictionary<string,string> _excludedFeatures;
     private readonly Dictionary<string,string> _excludedFlags;
+    private readonly Glob[] _excludedFilesGlobPatterns;
 
     public TestSuiteGenerator(TestSuiteGeneratorOptions options, string? usedSettingsFilePath)
     {
         _options = options;
         _usedSettingsFilePath = usedSettingsFilePath;
 
-        // TODO expand *
         _excludedFiles =_options.ExcludedFiles.Distinct().ToDictionary(x => x, x => $"File {x} excluded", StringComparer.OrdinalIgnoreCase);
         _excludedFeatures = _options.ExcludedFeatures.Distinct().ToDictionary(x => x, x => $"Feature {x} excluded", StringComparer.OrdinalIgnoreCase);
         _excludedFlags = _options.ExcludedFlags.Distinct().ToDictionary(x => x, x => $"Flag {x} excluded", StringComparer.OrdinalIgnoreCase);
+
+        var globChars = new[] { '*', '[', '{', '!', '?' };
+        _excludedFilesGlobPatterns = _options.ExcludedFiles
+            .Distinct()
+            .Where(x => x.IndexOfAny(globChars) != -1)
+            .Select(x => new Glob(x, GlobOptions.Compiled | GlobOptions.CaseInsensitive))
+            .ToArray();
     }
 
     public async Task Generate(Test262Stream stream)
@@ -137,8 +145,8 @@ public class TestSuiteGenerator
     private string? GetExcludeReason(Test262File file)
     {
         const string TestPrefix = "test/";
-        var name = file.FileName.StartsWith(TestPrefix) ? file.FileName.Substring(TestPrefix.Length) : file.FileName;
-        _excludedFiles.TryGetValue(name, out var excludeReason);
+        var fileName = file.FileName.StartsWith(TestPrefix) ? file.FileName.Substring(TestPrefix.Length) : file.FileName;
+        _excludedFiles.TryGetValue(fileName, out var excludeReason);
 
         if (excludeReason is null)
         {
@@ -158,6 +166,17 @@ public class TestSuiteGenerator
                 if (_excludedFlags.TryGetValue(flag, out excludeReason))
                 {
                     break;
+                }
+            }
+        }
+
+        if (excludeReason is null)
+        {
+            foreach (var pattern in _excludedFilesGlobPatterns)
+            {
+                if (pattern.IsMatch(fileName))
+                {
+                    return $"File {fileName} excluded (glob pattern)";
                 }
             }
         }

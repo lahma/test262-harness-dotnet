@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <PackageReference Include="Fluid.Core" Version="2.2.14" />
+    <PackageReference Include="Glob" Version="1.1.9" />
     <PackageReference Include="ZString" Version="2.4.4" />
   </ItemGroup>
 
