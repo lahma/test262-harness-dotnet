@@ -12,8 +12,22 @@ public class GeneratorModel
 
 public class TestCaseGroup
 {
-    public string Name { get; set; } = "";
-    public List<TestCase> TestCases { get; set; } = new();
+    public TestCaseGroup(string name, List<TestCase> testCases)
+    {
+        Name = name;
+        TestCases = testCases;
+
+        if (testCases.All(x => !string.IsNullOrWhiteSpace(x.IgnoreReason)))
+        {
+            // ignore the whole method
+            IgnoreReason = string.Join(", ", testCases.Select(x => x.IgnoreReason).Distinct());
+            TestCases.Clear();
+        }
+    }
+
+    public string Name { get; }
+    public List<TestCase> TestCases { get; }
+    public string? IgnoreReason { get; }
 }
 
 public class TestCase

@@ -7,13 +7,15 @@ public class TestSuiteGenerator
 {
     private readonly FluidParser _parser = new();
     private readonly TestSuiteGeneratorOptions _options;
+    private readonly string? _usedSettingsFilePath;
     private readonly Dictionary<string,string> _excludedFiles;
     private readonly Dictionary<string,string> _excludedFeatures;
     private readonly Dictionary<string,string> _excludedFlags;
 
-    public TestSuiteGenerator(TestSuiteGeneratorOptions options)
+    public TestSuiteGenerator(TestSuiteGeneratorOptions options, string? usedSettingsFilePath)
     {
         _options = options;
+        _usedSettingsFilePath = usedSettingsFilePath;
 
         // TODO expand *
         _excludedFiles =_options.ExcludedFiles.Distinct().ToDictionary(x => x, x => $"File {x} excluded", StringComparer.OrdinalIgnoreCase);
@@ -37,8 +39,8 @@ public class TestSuiteGenerator
         });
 
         var context = new TemplateContext(templateOptions);
-        context.SetValue("Namespace", _options.Namespace);
-        context.SetValue("Parallel", _options.Parallel);
+        SetCommonInfo(context);
+
         var bootstrapTemplate = await GetTemplate("Test262Test");
         WriteFile("Tests262Harness.Test262Test.generated.cs", await bootstrapTemplate.RenderAsync(context));
 
@@ -97,32 +99,41 @@ public class TestSuiteGenerator
                     })
                     .Select(x =>
                     {
-                        return new TestCaseGroup
-                        {
-                            Name = TestMethodName(x.Key!),
-                            TestCases = x
-                                .Select(x =>
-                                {
-                                    var excludeReason = directoryExcludeReason ?? GetExcludeReason(x);
-                                    return new TestCase(x, excludeReason);
-                                })
-                                .OrderBy(x => x.FileName)
-                                .ToList()
-                        };
+                        var testCases = x
+                            .Select(x =>
+                            {
+                                var excludeReason = directoryExcludeReason ?? GetExcludeReason(x);
+                                return new TestCase(x, excludeReason);
+                            })
+                            .OrderBy(x => x.FileName)
+                            .ToList();
+
+                        return new TestCaseGroup(TestMethodName(x.Key), testCases);
                     })
                     .OrderBy(x => x.Name)
                     .ToList()
             };
 
             context = new TemplateContext(model, templateOptions);
+            SetCommonInfo(context);
 
             WriteFile($"Tests262Harness.Tests.{item}.generated.cs", await testTemplate.RenderAsync(context));
         }
     }
 
+    private void SetCommonInfo(TemplateContext context)
+    {
+        context.SetValue("Namespace", _options.Namespace);
+        context.SetValue("Parallel", _options.Parallel);
+        context.SetValue("CommandLine", Environment.CommandLine);
+        context.SetValue("Version", typeof(TestSuiteGenerator).Assembly.GetName().Version);
+        context.SetValue("SettingsFile", _usedSettingsFilePath ?? "<none>");
+    }
+
     private string? GetExcludeReason(Test262File file)
     {
-        var name = file.FileName.StartsWith("test/") ? file.FileName.Substring("test/".Length) : file.FileName;
+        const string TestPrefix = "test/";
+        var name = file.FileName.StartsWith(TestPrefix) ? file.FileName.Substring(TestPrefix.Length) : file.FileName;
         _excludedFiles.TryGetValue(name, out var excludeReason);
 
         if (excludeReason is null)
@@ -171,6 +182,11 @@ public class TestSuiteGenerator
 
     private void WriteFile(string fileName, string contents)
     {
+        if (!Directory.Exists(_options.TargetPath))
+        {
+            Directory.CreateDirectory(_options.TargetPath);
+        }
+
         File.WriteAllText(Path.Combine(_options.TargetPath, fileName), contents);
     }
 }

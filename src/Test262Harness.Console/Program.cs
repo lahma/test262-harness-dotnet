@@ -42,6 +42,8 @@ internal sealed class GenerateCommand : AsyncCommand<GenerateCommand.Settings>
     {
         TestSuiteGeneratorOptions? options = null;
         var settingsFilePath = Path.Combine(Environment.CurrentDirectory, settings.SettingsFile);
+        string? usedSettingsFilePath = null;
+
         if (File.Exists(settingsFilePath))
         {
             var serializerOptions = new JsonSerializerOptions
@@ -51,6 +53,7 @@ internal sealed class GenerateCommand : AsyncCommand<GenerateCommand.Settings>
 
             await using var stream = File.OpenRead(settingsFilePath);
             options = await JsonSerializer.DeserializeAsync<TestSuiteGeneratorOptions>(stream, serializerOptions);
+            usedSettingsFilePath = settingsFilePath;
 
             AnsiConsole.MarkupLine("Read settings from [yellow]{0}[/]", settingsFilePath);
         }
@@ -96,12 +99,11 @@ internal sealed class GenerateCommand : AsyncCommand<GenerateCommand.Settings>
             };
         });
 
-        var generator = new TestSuiteGenerator(options);
+        var generator = new TestSuiteGenerator(options, usedSettingsFilePath);
         await generator.Generate(test262Stream);
 
-        await using var fileStream = File.Create(Path.Combine(options.TargetPath, "Test262Settings.settings.sample.json"));
-        await JsonSerializer.SerializeAsync(fileStream, options, new JsonSerializerOptions { WriteIndented = true });
-
+        //await using var fileStream = File.Create(Path.Combine(options.TargetPath, "Test262Settings.settings.sample.json"));
+        //await JsonSerializer.SerializeAsync(fileStream, options, new JsonSerializerOptions { WriteIndented = true });
         //AnsiConsole.MarkupLine($"Total file size for [green]{searchPattern}[/] files in [green]{searchPath}[/]: [blue]{totalFileSize:N0}[/] bytes");
 
         return 0;
