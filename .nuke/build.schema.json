@@ -73,7 +73,9 @@
             "enum": [
               "Clean",
               "Compile",
-              "Restore"
+              "Pack",
+              "Restore",
+              "Test"
             ]
           }
         },
@@ -89,7 +91,9 @@
             "enum": [
               "Clean",
               "Compile",
-              "Restore"
+              "Pack",
+              "Restore",
+              "Test"
             ]
           }
         },
@@ -102,6 +106,10 @@
             "Quiet",
             "Verbose"
           ]
+        },
+        "Version": {
+          "type": "string",
+          "description": "Version"
         }
       }
     }
