@@ -32,6 +32,8 @@ public static partial class State
     public static Test262Stream Test262Stream { get; set; }
 
     public static Test262File[] HarnessFiles { get; set; }
+
+    public static Func<Task<Test262Stream>> Test262StreamLoader { get; set; } = () => Test262StreamExtensions.FromGitHub(State.GitHubSha);
 }
 
 /// <summary>
@@ -43,7 +45,7 @@ public partial class TestHarness
     [OneTimeSetUp]
     public async Task RunBeforeAnyTests()
     {
-        var stream = await Test262StreamExtensions.FromGitHub(State.GitHubSha);
+        var stream = await State.Test262StreamLoader();
         State.Test262Stream = stream;
         State.HarnessFiles = State.Test262Stream.GetHarnessFiles().ToArray();
 
