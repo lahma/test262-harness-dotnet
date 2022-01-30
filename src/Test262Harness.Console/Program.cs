@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
+using System.Xml.XPath;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Test262Harness;
@@ -36,6 +37,9 @@ internal sealed class GenerateCommand : AsyncCommand<GenerateCommand.Settings>
         [CommandOption("-n|--namespace")]
         public string? Namespace { get; set; }
 
+        [CommandOption("--excluded-files-source")]
+        public string? ExcludedFilesSource { get; set; }
+
         [Description("Allows to use custom settings file")]
         [CommandOption("-s|--settings")]
         [DefaultValue("Test262Harness.settings.json")]
@@ -68,30 +72,7 @@ internal sealed class GenerateCommand : AsyncCommand<GenerateCommand.Settings>
 
         options ??= new TestSuiteGeneratorOptions();
 
-        if (!string.IsNullOrWhiteSpace(settings.SuiteGitSha))
-        {
-            options.SuiteGitSha = settings.SuiteGitSha;
-        }
-
-        if (!string.IsNullOrWhiteSpace(settings.SuiteDirectory))
-        {
-            options.SuiteDirectory = settings.SuiteDirectory;
-        }
-
-        if (settings.TestFramework != null)
-        {
-            options.TestFramework = settings.TestFramework.Value;
-        }
-
-        if (!string.IsNullOrWhiteSpace(settings.TargetPath))
-        {
-            options.TargetPath = settings.TargetPath;
-        }
-
-        if (!string.IsNullOrWhiteSpace(settings.Namespace))
-        {
-            options.Namespace = settings.Namespace;
-        }
+        await FinalizeOptions(settings, options);
 
         Action<Test262StreamOptions> configureOptions = options =>
         {
@@ -134,5 +115,50 @@ internal sealed class GenerateCommand : AsyncCommand<GenerateCommand.Settings>
         AnsiConsole.MarkupLine($"Generated [green]{totalCount}[/] test cases");
 
         return 0;
+    }
+
+    private static async Task FinalizeOptions(Settings settings, TestSuiteGeneratorOptions options)
+    {
+        if (!string.IsNullOrWhiteSpace(settings.SuiteGitSha))
+        {
+            options.SuiteGitSha = settings.SuiteGitSha;
+        }
+
+        if (!string.IsNullOrWhiteSpace(settings.SuiteDirectory))
+        {
+            options.SuiteDirectory = settings.SuiteDirectory;
+        }
+
+        if (settings.TestFramework != null)
+        {
+            options.TestFramework = settings.TestFramework.Value;
+        }
+
+        if (!string.IsNullOrWhiteSpace(settings.TargetPath))
+        {
+            options.TargetPath = settings.TargetPath;
+        }
+
+        if (!string.IsNullOrWhiteSpace(settings.Namespace))
+        {
+            options.Namespace = settings.Namespace;
+        }
+
+        if (!string.IsNullOrWhiteSpace(settings.ExcludedFilesSource))
+        {
+            options.ExcludedFilesSource = settings.ExcludedFilesSource;
+        }
+
+        if (!string.IsNullOrWhiteSpace(options.ExcludedFilesSource))
+        {
+            var lines = await File.ReadAllLinesAsync(options.ExcludedFilesSource);
+
+            var valid = lines
+                .Where(x => !string.IsNullOrWhiteSpace(x) && !x.StartsWith("#"))
+                // support esprima format
+                .Select(x => x.StartsWith("test/") ? x.Substring("test/".Length) : x);
+
+            options.ExcludedFiles = options.ExcludedFiles.Concat(valid).ToArray();
+        }
     }
 }

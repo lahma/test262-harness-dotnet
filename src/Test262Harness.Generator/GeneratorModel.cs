@@ -19,7 +19,15 @@ public class TestCaseGroup
         if (testCases.All(x => !string.IsNullOrWhiteSpace(x.IgnoreReason)))
         {
             // ignore the whole method
-            IgnoreReason = string.Join(", ", testCases.Select(x => x.IgnoreReason).Distinct());
+            var reasons = testCases.Select(x => x.IgnoreReason).Distinct().ToList();
+            if (reasons.Count > 1 && reasons.All(r => r != null && r.StartsWith("File ")))
+            {
+                IgnoreReason = "All files ignored";
+            }
+            else
+            {
+                IgnoreReason = string.Join(", ", reasons);
+            }
             TestCases.Clear();
         }
     }

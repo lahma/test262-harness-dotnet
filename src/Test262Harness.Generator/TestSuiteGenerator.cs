@@ -11,7 +11,7 @@ public class TestSuiteGenerator
     private readonly FluidParser _parser = new();
     private readonly TestSuiteGeneratorOptions _options;
     private readonly string? _usedSettingsFilePath;
-    private readonly Dictionary<string,string> _excludedFiles;
+    private readonly Dictionary<(string Name, bool Strict), string> _excludedFiles;
     private readonly Dictionary<string,string> _excludedFeatures;
     private readonly Dictionary<string,string> _excludedFlags;
     private readonly Glob[] _excludedFilesGlobPatterns;
@@ -21,7 +21,33 @@ public class TestSuiteGenerator
         _options = options;
         _usedSettingsFilePath = usedSettingsFilePath;
 
-        _excludedFiles =_options.ExcludedFiles.Distinct().ToDictionary(x => x, x => $"File {x} excluded", StringComparer.OrdinalIgnoreCase);
+        _excludedFiles =_options.ExcludedFiles
+            .Select(x => x.Trim().ToLowerInvariant())
+            .Distinct()
+            // translate esprima format
+            .SelectMany(x =>
+            {
+                if (x.EndsWith("(default)"))
+                {
+                    return new (string Name, bool Strict)[] { (x.Substring(0, x.Length - "(default)".Length), false) };
+                }
+
+                if (x.EndsWith("(strict mode)"))
+                {
+                    return new (string Name, bool Strict)[] { (x.Substring(0, x.Length - "(strict mode)".Length), true) };
+                }
+                else
+                {
+                    // as-is and both
+                    return new (string Name, bool Strict)[]
+                    {
+                        (x, false),
+                        (x, true)
+                    };
+                }
+            })
+            .ToDictionary(x => x, x => $"File {x.Name} excluded ({(string?) (x.Strict ? "strict mode" : "default")})");
+
         _excludedFeatures = _options.ExcludedFeatures.Distinct().ToDictionary(x => x, x => $"Feature {x} excluded", StringComparer.OrdinalIgnoreCase);
         _excludedFlags = _options.ExcludedFlags.Distinct().ToDictionary(x => x, x => $"Flag {x} excluded", StringComparer.OrdinalIgnoreCase);
 
@@ -29,7 +55,7 @@ public class TestSuiteGenerator
         _excludedFilesGlobPatterns = _options.ExcludedFiles
             .Distinct()
             .Where(x => x.IndexOfAny(globChars) != -1)
-            .Select(x => new Glob(x, GlobOptions.Compiled | GlobOptions.CaseInsensitive))
+            .Select(x => new Glob(x.ToLowerInvariant(), GlobOptions.Compiled | GlobOptions.CaseInsensitive))
             .ToArray();
     }
 
@@ -152,7 +178,9 @@ public class TestSuiteGenerator
     {
         const string TestPrefix = "test/";
         var fileName = file.FileName.StartsWith(TestPrefix) ? file.FileName.Substring(TestPrefix.Length) : file.FileName;
-        _excludedFiles.TryGetValue(fileName, out var excludeReason);
+        fileName = fileName.ToLowerInvariant();
+
+        _excludedFiles.TryGetValue((fileName, file.Strict), out var excludeReason);
 
         if (excludeReason is null)
         {

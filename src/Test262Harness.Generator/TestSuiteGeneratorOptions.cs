@@ -19,4 +19,6 @@ public class TestSuiteGeneratorOptions
     public string[] ExcludedFlags { get; set; } = Array.Empty<string>();
     public string[] ExcludedDirectories { get; set; } = Array.Empty<string>();
     public string[] ExcludedFiles { get; set; } = Array.Empty<string>();
+
+    public string ExcludedFilesSource { get; set; } = "";
 }
