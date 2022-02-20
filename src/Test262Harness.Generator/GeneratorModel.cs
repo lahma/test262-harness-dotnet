@@ -16,7 +16,8 @@ public class TestCaseGroup
         Name = name;
         TestCases = testCases;
 
-        if (testCases.All(x => !string.IsNullOrWhiteSpace(x.IgnoreReason)))
+        IgnoreCount = testCases.Count(x => !string.IsNullOrWhiteSpace(x.IgnoreReason)); 
+        if (testCases.Count == IgnoreCount)
         {
             // ignore the whole method
             var reasons = testCases.Select(x => x.IgnoreReason).Distinct().ToList();
@@ -34,6 +35,7 @@ public class TestCaseGroup
 
     public string Name { get; }
     public List<TestCase> TestCases { get; }
+    public int IgnoreCount { get; }
     public string? IgnoreReason { get; }
 }
 

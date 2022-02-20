@@ -1,7 +1,6 @@
 ﻿using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
-using System.Xml.XPath;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Test262Harness;
@@ -107,12 +106,13 @@ internal sealed class GenerateCommand : AsyncCommand<GenerateCommand.Settings>
         }
 
         var generator = new TestSuiteGenerator(options, usedSettingsFilePath);
-        var totalCount = await generator.Generate(test262Stream);
+        var (totalCount, ignoreCount) = await generator.Generate(test262Stream);
 
         //await using var fileStream = File.Create(Path.Combine(options.TargetPath, "Test262Settings.settings.sample.json"));
         //await JsonSerializer.SerializeAsync(fileStream, options, new JsonSerializerOptions { WriteIndented = true });
 
         AnsiConsole.MarkupLine($"Generated [green]{totalCount}[/] test cases");
+        AnsiConsole.MarkupLine($"Total of [yellow]{ignoreCount}[/] test cases were ignored (some might have been grouped into single folder ignore)");
 
         return 0;
     }

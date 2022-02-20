@@ -82,6 +82,11 @@ public abstract partial class Test262Test
         try
         {
             ExecuteTest(executor, testCase);
+
+            if (testCase.Negative)
+            {
+                ThrowError(testCase, "Expected error to be thrown, but no error was thrown");
+            }
         }
         catch (Exception e)
         {
@@ -90,10 +95,15 @@ public abstract partial class Test262Test
 
         if (!testCase.Negative && !string.IsNullOrWhiteSpace(lastError))
         {
-            // create friendly formatted code as we have different line numbers compared to original file having comments etc
-            var code = string.Join(Environment.NewLine, testCase.Program.Split('\n').Select((x, i) => $"{i + 1:00}: {x}"));
-            var message = $"{Environment.NewLine}{testCase.FileName}{Environment.NewLine}{Environment.NewLine}{lastError}{Environment.NewLine}{code}";
-            throw new NUnitException(message);
+            ThrowError(testCase, lastError);
         }
+    }
+        
+    private void ThrowError(Test262File testCase, string lastError)
+    {
+        // create friendly formatted code as we have different line numbers compared to original file having comments etc
+        var code = string.Join(Environment.NewLine, testCase.Program.Split('\n').Select((x, i) => $"{i + 1:00}: {x}"));
+        var message = $"{Environment.NewLine}{testCase.FileName}{Environment.NewLine}{Environment.NewLine}{lastError}{Environment.NewLine}{code}";
+        throw new NUnitException(message);    
     }
 }

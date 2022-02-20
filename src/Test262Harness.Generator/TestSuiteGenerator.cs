@@ -59,7 +59,7 @@ public class TestSuiteGenerator
             .ToArray();
     }
 
-    public async Task<int> Generate(Test262Stream stream)
+    public async Task<(int TotalTestCaseCount, int IgnoreCount)> Generate(Test262Stream stream)
     {
         var templateOptions = new TemplateOptions
         {
@@ -82,6 +82,7 @@ public class TestSuiteGenerator
         WriteFile("Tests262Harness.Test262Test.generated.cs", await bootstrapTemplate.RenderAsync(context));
 
         var totalCount = 0;
+        var ignoreCount = 0;
         var (testTemplate, testHash) = await GetTemplate("Tests");
         foreach (var item in stream.Options.SubDirectories)
         {
@@ -157,9 +158,10 @@ public class TestSuiteGenerator
             WriteFile($"Tests262Harness.Tests.{item}.generated.cs", await testTemplate.RenderAsync(context));
 
             totalCount += model.TestCaseGroupings.Sum(x => Math.Max(1, x.TestCases.Count));
+            ignoreCount += model.TestCaseGroupings.Sum(x => x.IgnoreCount);
         }
 
-        return totalCount;
+        return (totalCount, ignoreCount);
     }
 
     private void SetCommonInfo(TemplateContext context, string templateHash)

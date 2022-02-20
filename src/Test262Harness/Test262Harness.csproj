@@ -6,7 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="YamlDotNet" Version="11.2.1" />
-    <PackageReference Include="Zio" Version="0.13.0" />
+    <PackageReference Include="Zio" Version="0.14.0" />
     <PackageReference Include="ZString" Version="2.4.3" />
   </ItemGroup>
 
