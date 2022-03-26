@@ -205,8 +205,8 @@ public sealed class Test262File : IEquatable<Test262File>
                     break;
                 case "negative":
                     var source = (YamlMappingNode) node.Value;
-                    Enum.TryParse<TestingPhase>(source["phase"].ToString(), out var phase);
-                    Enum.TryParse<ExpectedErrorType>(source["type"].ToString(), out var expectedErrorType);
+                    Enum.TryParse<TestingPhase>(source["phase"].ToString(), ignoreCase: true, out var phase);
+                    Enum.TryParse<ExpectedErrorType>(source["type"].ToString(), ignoreCase: true, out var expectedErrorType);
 
                     test.NegativeTestCase = new NegativeTestCase(phase, expectedErrorType);
                     break;
