@@ -23,22 +23,22 @@ public sealed class Test262RunnerOptions
     /// Logic to determine whether given test case should throw. For parsers this might mean to check only parse phase, for
     /// interpreters also runtime errors should be considered.
     /// </summary>
-    public Func<Test262File, bool> ShouldThrow { get; set; } = _ => throw new NotImplementedException("ShouldThrow callback not implemented");
+    public Func<Test262File, bool> ShouldThrow { get; set; } = _ => true;
 
     /// <summary>
     /// Logic to tell whether thrown exception was parsing error.
     /// </summary>
-    public Func<Exception, bool> IsParseError { get; set; } = _ => throw new NotImplementedException("IsParseError callback not implemented");
+    public Func<Exception, bool> IsParseError { get; set; } = _ => false;
 
     /// <summary>
     /// Logic to tell whether thrown exception was resolution error.
     /// </summary>
-    public Func<Exception, bool> IsResolutionError { get; set; } = _ => throw new NotImplementedException("IsResolutionError callback not implemented");
+    public Func<Exception, bool> IsResolutionError { get; set; } = _ => false;
 
     /// <summary>
     /// Logic to tell whether thrown exception was resolution error.
     /// </summary>
-    public Func<Exception, bool> IsRuntimeError { get; set; } = _ => throw new NotImplementedException("IsRuntimeError callback not implemented");
+    public Func<Exception, bool> IsRuntimeError { get; set; } = _ => false;
 
     public Action<Test262File> OnTestExecuted { get; set; } = _ => { };
 

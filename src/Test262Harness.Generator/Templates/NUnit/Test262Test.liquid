@@ -83,7 +83,7 @@ public abstract partial class Test262Test
         {
             ExecuteTest(executor, testCase);
 
-            if (testCase.Negative)
+            if (ShouldThrow(testCase, strict))
             {
                 ThrowError(testCase, "Expected error to be thrown, but no error was thrown");
             }
@@ -98,7 +98,9 @@ public abstract partial class Test262Test
             ThrowError(testCase, lastError);
         }
     }
-        
+
+    private partial bool ShouldThrow(Test262File testCase, bool strict); 
+
     private void ThrowError(Test262File testCase, string lastError)
     {
         // create friendly formatted code as we have different line numbers compared to original file having comments etc
