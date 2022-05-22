@@ -91,7 +91,7 @@ internal sealed class GenerateCommand : AsyncCommand<GenerateCommand.Settings>
         Test262Stream test262Stream;
         if (!string.IsNullOrWhiteSpace(options.SuiteGitSha))
         {
-            AnsiConsole.MarkupLine($"Loading using GitHub repository at commit [yellow]{options.SuiteGitSha}[/]");
+            AnsiConsole.MarkupLine($"Downloading from GitHub repository using commit [yellow]{options.SuiteGitSha}[/]");
             test262Stream = await Test262StreamExtensions.FromGitHub(options.SuiteGitSha, configure: configureOptions);
         }
         else if (!string.IsNullOrWhiteSpace(options.SuiteDirectory))

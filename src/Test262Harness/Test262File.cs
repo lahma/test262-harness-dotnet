@@ -1,4 +1,3 @@
-using Cysharp.Text;
 using YamlDotNet.RepresentationModel;
 
 namespace Test262Harness;
@@ -130,32 +129,32 @@ public sealed class Test262File : IEquatable<Test262File>
     {
         fileName = NormalizedFilePath(fileName);
 
-        using var reader = new StreamReader(stream);
-        using var copyright = ZString.CreateStringBuilder();
+        var contents = new StreamReader(stream).ReadToEnd();
 
-        string? line;
-        while ((line = reader.ReadLine()) != null && (string.IsNullOrWhiteSpace(line) || line.Trim().StartsWith("//")))
+        var copyRightIndex = contents.IndexOf("//", StringComparison.OrdinalIgnoreCase);
+        var yamlStartIndex = contents.IndexOf(YamlSectionStartMarker, StringComparison.OrdinalIgnoreCase);
+
+        var pretext = "";
+        if (copyRightIndex > 0)
         {
-            copyright.AppendLine(line);
+            pretext = contents.Substring(0, copyRightIndex);
         }
 
-        while (line != null && !line.StartsWith(YamlSectionStartMarker))
+        if (yamlStartIndex < 0)
         {
-            line = reader.ReadLine();
+            throw new ArgumentException($"Test case {fileName} is invalid, cannot find YAML section start.");
         }
 
-        if (line is null)
+        var copyright = contents.Substring(copyRightIndex, yamlStartIndex - copyRightIndex);
+
+        var yamlEndIndex = contents.IndexOf(YamlSectionEndMarker, yamlStartIndex, StringComparison.OrdinalIgnoreCase);
+
+        if (yamlEndIndex < 0)
         {
-            throw new ArgumentException($"Test case {fileName} is invalid, cannot find YAML section.");
+            throw new ArgumentException($"Test case {fileName} is invalid, cannot find YAML section end.");
         }
 
-        using var yamlBuilder = ZString.CreateStringBuilder();
-        while ((line = reader.ReadLine()) != null && !line.Trim().StartsWith(YamlSectionEndMarker))
-        {
-            yamlBuilder.AppendLine(line);
-        }
-
-        var yaml = yamlBuilder.ToString();
+        var yaml = contents.Substring(yamlStartIndex + YamlSectionStartMarker.Length, yamlEndIndex - YamlSectionEndMarker.Length - yamlStartIndex);
         if (string.IsNullOrWhiteSpace(yaml))
         {
             throw new ArgumentException($"Test case {fileName} is invalid, cannot find YAML section.");
@@ -233,8 +232,8 @@ public sealed class Test262File : IEquatable<Test262File>
             }
         }
 
-        test.Copyright = copyright.ToString();
-        test.Program = reader.ReadToEnd();
+        test.Copyright = copyright;
+        test.Program = pretext + contents.Substring(yamlEndIndex + YamlSectionEndMarker.Length);
 
         if (!generateInverseStrictTestCase)
         {
