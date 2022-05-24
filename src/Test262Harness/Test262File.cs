@@ -212,6 +212,7 @@ public sealed class Test262File : IEquatable<Test262File>
                                 onlyStrict = true;
                                 break;
                             case "noStrict":
+                            case "raw":
                                 noStrict = true;
                                 break;
                         }
