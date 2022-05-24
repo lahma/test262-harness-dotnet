@@ -90,11 +90,6 @@ public sealed class Test262File : IEquatable<Test262File>
     /// </summary>
     public string Program { get; private set; } = "";
 
-    /// <summary>
-    /// The copyright block of the test.
-    /// </summary>
-    public string Copyright { get; private set; } = "";
-
     public bool Strict { get; private set; }
 
     public bool Negative => Array.IndexOf(_flags, "negative") != -1 || NegativeTestCase is not null;
@@ -129,23 +124,18 @@ public sealed class Test262File : IEquatable<Test262File>
     {
         fileName = NormalizedFilePath(fileName);
 
-        var contents = new StreamReader(stream).ReadToEnd();
-
-        var copyRightIndex = contents.IndexOf("//", StringComparison.OrdinalIgnoreCase);
-        var yamlStartIndex = contents.IndexOf(YamlSectionStartMarker, StringComparison.OrdinalIgnoreCase);
-
-        var pretext = "";
-        if (copyRightIndex > 0)
+        string contents;
+        using (var streamReader = new StreamReader(stream))
         {
-            pretext = contents.Substring(0, copyRightIndex);
+            contents = streamReader.ReadToEnd();
         }
+
+        var yamlStartIndex = contents.IndexOf(YamlSectionStartMarker, StringComparison.OrdinalIgnoreCase);
 
         if (yamlStartIndex < 0)
         {
             throw new ArgumentException($"Test case {fileName} is invalid, cannot find YAML section start.");
         }
-
-        var copyright = contents.Substring(copyRightIndex, yamlStartIndex - copyRightIndex);
 
         var yamlEndIndex = contents.IndexOf(YamlSectionEndMarker, yamlStartIndex, StringComparison.OrdinalIgnoreCase);
 
@@ -232,8 +222,7 @@ public sealed class Test262File : IEquatable<Test262File>
             }
         }
 
-        test.Copyright = copyright;
-        test.Program = pretext + contents.Substring(yamlEndIndex + YamlSectionEndMarker.Length);
+        test.Program = contents;
 
         if (!generateInverseStrictTestCase)
         {
