@@ -9,20 +9,21 @@
 #
 #     - To trigger manual generation invoke:
 #
-#         nuke --generate-configuration GitHubActions_ci --host GitHubActions
+#         nuke --generate-configuration GitHubActions_pr --host GitHubActions
 #
 # </auto-generated>
 # ------------------------------------------------------------------------------
 
-name: ci
+name: pr
 
 on:
-  push:
-    branches-ignore:
-      - main
   pull_request:
     branches:
+      - master
       - main
+    paths:
+      - '**/*.*'
+      - '!**/*.md'
 
 jobs:
   windows-latest:
@@ -36,9 +37,9 @@ jobs:
           path: |
             .nuke/temp
             ~/.nuget/packages
-          key: ${{ runner.os }}-${{ hashFiles('global.json', 'source/**/*.csproj') }}
-      - name: Run './build.cmd Test Pack'
-        run: ./build.cmd Test Pack
+          key: ${{ runner.os }}-${{ hashFiles('global.json', 'src/**/*.csproj', 'src/**/package.json') }}
+      - name: Run './build.cmd Compile Test Pack'
+        run: ./build.cmd Compile Test Pack
   ubuntu-latest:
     name: ubuntu-latest
     runs-on: ubuntu-latest
@@ -50,20 +51,6 @@ jobs:
           path: |
             .nuke/temp
             ~/.nuget/packages
-          key: ${{ runner.os }}-${{ hashFiles('global.json', 'source/**/*.csproj') }}
-      - name: Run './build.cmd Test Pack'
-        run: ./build.cmd Test Pack
-  macOS-latest:
-    name: macOS-latest
-    runs-on: macOS-latest
-    steps:
-      - uses: actions/checkout@v1
-      - name: Cache .nuke/temp, ~/.nuget/packages
-        uses: actions/cache@v2
-        with:
-          path: |
-            .nuke/temp
-            ~/.nuget/packages
-          key: ${{ runner.os }}-${{ hashFiles('global.json', 'source/**/*.csproj') }}
-      - name: Run './build.cmd Test Pack'
-        run: ./build.cmd Test Pack
+          key: ${{ runner.os }}-${{ hashFiles('global.json', 'src/**/*.csproj', 'src/**/package.json') }}
+      - name: Run './build.cmd Compile Test Pack'
+        run: ./build.cmd Compile Test Pack
