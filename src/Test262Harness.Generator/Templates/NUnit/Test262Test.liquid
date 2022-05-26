@@ -76,11 +76,11 @@ public abstract partial class Test262Test
             testCase = testCase.AsStrict();
         }
 
-        var executor = BuildTestExecutor(testCase);
-
         string lastError = null;
         try
         {
+            var executor = BuildTestExecutor(testCase);
+
             ExecuteTest(executor, testCase);
 
             if (ShouldThrow(testCase, strict))
