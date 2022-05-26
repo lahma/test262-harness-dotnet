@@ -129,7 +129,8 @@ partial class Build : NukeBuild
             DotNetPack(s => s
                 .SetConfiguration(Configuration)
                 .SetOutputDirectory(ArtifactsDirectory)
-                //.SetVersion(Version)
+                .SetVersionPrefix(VersionPrefix)
+                .SetVersionSuffix(VersionSuffix)
             );
         });
 
