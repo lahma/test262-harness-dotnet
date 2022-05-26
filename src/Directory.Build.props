@@ -27,7 +27,6 @@
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
 
     <VersionPrefix>0.0.17</VersionPrefix>
-    <VersionSuffix Condition="'$(VersionSuffix)'!='' AND '$(BuildNumber)' != ''">$(VersionSuffix)-$(BuildNumber)</VersionSuffix>
 
     <CLSCompliant>true</CLSCompliant>
     <DebugSymbols>true</DebugSymbols>
@@ -35,10 +34,6 @@
     <AssemblyOriginatorKeyFile>../../Test262Harness.snk</AssemblyOriginatorKeyFile>
     <SignAssembly>false</SignAssembly>
 
-  </PropertyGroup>
-
-  <PropertyGroup Condition=" '$(APPVEYOR)' == 'true' OR '$(GITHUB_ACTIONS)' == 'true' ">
-    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
   </PropertyGroup>
 
   <ItemGroup>

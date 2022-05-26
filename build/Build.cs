@@ -104,9 +104,11 @@ partial class Build : NukeBuild
             DotNetBuild(s => s
                 .SetProjectFile(Solution)
                 .SetConfiguration(Configuration)
-                //.SetAssemblyVersion(GitVersion.AssemblySemVer)
-                //.SetFileVersion(GitVersion.AssemblySemFileVer)
-                //.SetInformationalVersion(GitVersion.InformationalVersion)
+                .SetAssemblyVersion(VersionPrefix)
+                .SetFileVersion(VersionPrefix)
+                .SetInformationalVersion(VersionPrefix)
+                .SetDeterministic(IsServerBuild)
+                .SetContinuousIntegrationBuild(IsServerBuild)
                 .EnableNoRestore()
             );
         });
@@ -119,7 +121,8 @@ partial class Build : NukeBuild
                 .SetProjectFile(Solution)
                 .SetConfiguration(Configuration)
                 .EnableNoBuild()
-                .EnableNoRestore());
+                .EnableNoRestore()
+            );
         });
 
     Target Pack => _ => _
@@ -127,6 +130,7 @@ partial class Build : NukeBuild
         .Executes(() =>
         {
             DotNetPack(s => s
+                .EnableNoBuild()
                 .SetConfiguration(Configuration)
                 .SetOutputDirectory(ArtifactsDirectory)
                 .SetVersionPrefix(VersionPrefix)
