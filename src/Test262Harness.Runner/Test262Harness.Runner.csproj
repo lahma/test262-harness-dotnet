@@ -12,7 +12,7 @@
       <PackageReference Include="JavaScriptEngineSwitcher.Jint" Version="3.1.0" />
       <PackageReference Include="JavaScriptEngineSwitcher.Jurassic" Version="3.13.0" />
       <PackageReference Include="JavaScriptEngineSwitcher.NiL" Version="3.12.4" />
-      <PackageReference Include="Spectre.Console" Version="0.43.0" />
+      <PackageReference Include="Spectre.Console" Version="0.44.0" />
     </ItemGroup>
 
     <ItemGroup>
