@@ -26,7 +26,7 @@
     <LangVersion>latest</LangVersion>
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
 
-    <VersionPrefix>0.0.17</VersionPrefix>
+    <VersionPrefix>0.0.19</VersionPrefix>
 
     <CLSCompliant>true</CLSCompliant>
     <DebugSymbols>true</DebugSymbols>
