@@ -150,6 +150,12 @@ public sealed class Test262File : IEquatable<Test262File>
             throw new ArgumentException($"Test case {fileName} is invalid, cannot find YAML section.");
         }
 
+        // TODO temporary hack as long as YamlDotNet cannot handle input correctly
+        if (fileName.EndsWith("/11.4.7-4-1.js"))
+        {
+            yaml = yaml.Replace("-\"\" should be zero", "should be zero");
+        }
+
         YamlDocument document;
         try
         {
