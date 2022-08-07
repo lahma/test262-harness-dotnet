@@ -1,4 +1,4 @@
-using System.IO.Compression;
+using ICSharpCode.SharpZipLib.Zip;
 using Zio;
 using Zio.FileSystems;
 
@@ -7,21 +7,21 @@ namespace Test262Harness;
 internal sealed class ZipArchiveFileSystem : MemoryFileSystem
 {
     private readonly string _rootName;
-    private readonly ZipArchive _archive;
+    private readonly ZipFile _archive;
 
     private ZipArchiveFileSystem(UPath file, string rootName)
     {
         _rootName = rootName;
-        _archive = new ZipArchive(File.OpenRead(file.FullName), ZipArchiveMode.Read);
+        _archive = new ZipFile(File.OpenRead(file.FullName));
 
         var item1 = rootName.TrimEnd('/') + "/" + "test";
         var item2 = rootName.TrimEnd('/') + "/" + "harness";
 
         // trigger file system creation to build a faster tree
         var createdDirectories = new HashSet<UPath>();
-        foreach (var entry in _archive.Entries)
+        foreach (ZipEntry entry in _archive)
         {
-            var name = entry.FullName;
+            var name = entry.Name;
             if (!name.StartsWith(item1) && !name.StartsWith(item2))
             {
                 continue;
@@ -53,7 +53,7 @@ internal sealed class ZipArchiveFileSystem : MemoryFileSystem
     {
         var archivePath = _rootName + path.FullName;
         var entry = _archive.GetEntry(archivePath) ?? throw new FileNotFoundException($"Could not find file `{path}`.");
-        return entry.Open();
+        return _archive.GetInputStream(entry);
     }
 
     protected override void Dispose(bool disposing)
@@ -61,7 +61,7 @@ internal sealed class ZipArchiveFileSystem : MemoryFileSystem
         base.Dispose(disposing);
         if (disposing)
         {
-            _archive.Dispose();
+            _archive.Close();
         }
     }
 }

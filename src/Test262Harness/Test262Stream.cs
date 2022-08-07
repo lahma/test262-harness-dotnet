@@ -88,12 +88,9 @@ public sealed class Test262Stream
     public Test262File GetTestFile(string fileName)
     {
         var fileSystem = Options.FileSystem;
-        lock (fileSystem)
-        {
-            using var stream = fileSystem.OpenFile("/test/" + fileName, FileMode.Open, FileAccess.Read, FileShare.Read);
-            var test262Files = Test262File.FromStream(stream, fileName, false).Single();
-            return test262Files;
-        }
+        using var stream = fileSystem.OpenFile("/test/" + fileName, FileMode.Open, FileAccess.Read, FileShare.Read);
+        var test262Files = Test262File.FromStream(stream, fileName, false).Single();
+        return test262Files;
     }
 
     public IEnumerable<Test262File> GetTestFiles(string[]? subDirectories = null, Func<Test262File, bool>? testCaseFilter = null)
@@ -103,17 +100,14 @@ public sealed class Test262Stream
         var fileSystem = Options.FileSystem;
         testCaseFilter ??= Options.TestCaseFilter;
 
-        lock (fileSystem)
+        foreach (var filePath in targetFiles)
         {
-            foreach (var filePath in targetFiles)
+            using var stream = fileSystem.OpenFile(filePath.FullName, FileMode.Open, FileAccess.Read, FileShare.Read);
+            foreach (var testCase in Test262File.FromStream(stream, filePath.FullName, Options.GenerateInverseStrictTestCase))
             {
-                using var stream = fileSystem.OpenFile(filePath.FullName, FileMode.Open, FileAccess.Read, FileShare.Read);
-                foreach (var testCase in Test262File.FromStream(stream, filePath.FullName, Options.GenerateInverseStrictTestCase))
+                if (testCaseFilter(testCase))
                 {
-                    if (testCaseFilter(testCase))
-                    {
-                        yield return testCase;
-                    }
+                    yield return testCase;
                 }
             }
         }
@@ -122,17 +116,14 @@ public sealed class Test262Stream
     public IEnumerable<Test262File> GetHarnessFiles()
     {
         var fileSystem = Options.FileSystem;
-        lock (fileSystem)
-        {
-            var targetFiles = EnumerateHarnessFiles();
+        var targetFiles = EnumerateHarnessFiles();
 
-            foreach (var filePath in targetFiles)
+        foreach (var filePath in targetFiles)
+        {
+            using var stream = fileSystem.OpenFile(filePath.FullName, FileMode.Open, FileAccess.Read, FileShare.Read);
+            foreach (var testCase in Test262File.FromStream(stream, filePath.FullName, generateInverseStrictTestCase: false))
             {
-                using var stream = fileSystem.OpenFile(filePath.FullName, FileMode.Open, FileAccess.Read, FileShare.Read);
-                foreach (var testCase in Test262File.FromStream(stream, filePath.FullName, generateInverseStrictTestCase: false))
-                {
-                    yield return testCase;
-                }
+                yield return testCase;
             }
         }
     }
