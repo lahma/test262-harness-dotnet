@@ -8,6 +8,7 @@ internal sealed class ZipArchiveFileSystem : MemoryFileSystem
 {
     private readonly string _rootName;
     private readonly ZipFile _archive;
+    private readonly Dictionary<string, long> _entryCache = new();
 
     private ZipArchiveFileSystem(UPath file, string rootName)
     {
@@ -40,6 +41,7 @@ internal sealed class ZipArchiveFileSystem : MemoryFileSystem
             {
                 // file
                 using var _ = base.OpenFileImpl(transformed, FileMode.CreateNew, FileAccess.Read, FileShare.ReadWrite);
+                _entryCache[transformed] = entry.ZipFileIndex;
             }
         }
     }
@@ -51,9 +53,11 @@ internal sealed class ZipArchiveFileSystem : MemoryFileSystem
 
     protected override Stream OpenFileImpl(UPath path, FileMode mode, FileAccess access, FileShare share)
     {
-        var archivePath = _rootName + path.FullName;
-        var entry = _archive.GetEntry(archivePath) ?? throw new FileNotFoundException($"Could not find file `{path}`.");
-        return _archive.GetInputStream(entry);
+        if (!_entryCache.TryGetValue(path.FullName, out var entryIndex))
+        {
+            throw new FileNotFoundException($"Could not find file `{path}`.");
+        }
+        return _archive.GetInputStream(entryIndex);
     }
 
     protected override void Dispose(bool disposing)
