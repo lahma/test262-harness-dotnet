@@ -111,6 +111,7 @@ partial class Build : NukeBuild
 
     Target Test => _ => _
         .DependsOn(Compile)
+        .Before(Pack, Publish)
         .Executes(() =>
         {
             DotNetTest(s => s
