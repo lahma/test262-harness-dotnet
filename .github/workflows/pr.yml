@@ -29,28 +29,34 @@ jobs:
   windows-latest:
     name: windows-latest
     runs-on: windows-latest
+    concurrency:
+      group: ${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.run_id }}
+      cancel-in-progress: true
     steps:
-      - uses: actions/checkout@v2
-      - name: Cache .nuke/temp, ~/.nuget/packages
-        uses: actions/cache@v2
+      - uses: actions/checkout@v3
+      - name: 'Cache: .nuke/temp, ~/.nuget/packages'
+        uses: actions/cache@v3
         with:
           path: |
             .nuke/temp
             ~/.nuget/packages
-          key: ${{ runner.os }}-${{ hashFiles('global.json', 'src/**/*.csproj', 'src/**/package.json') }}
-      - name: Run './build.cmd Compile Test Pack'
+          key: ${{ runner.os }}-${{ hashFiles('**/global.json', '**/*.csproj', '**/Directory.Packages.props') }}
+      - name: 'Run: Compile, Test, Pack'
         run: ./build.cmd Compile Test Pack
   ubuntu-latest:
     name: ubuntu-latest
     runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.run_id }}
+      cancel-in-progress: true
     steps:
-      - uses: actions/checkout@v2
-      - name: Cache .nuke/temp, ~/.nuget/packages
-        uses: actions/cache@v2
+      - uses: actions/checkout@v3
+      - name: 'Cache: .nuke/temp, ~/.nuget/packages'
+        uses: actions/cache@v3
         with:
           path: |
             .nuke/temp
             ~/.nuget/packages
-          key: ${{ runner.os }}-${{ hashFiles('global.json', 'src/**/*.csproj', 'src/**/package.json') }}
-      - name: Run './build.cmd Compile Test Pack'
+          key: ${{ runner.os }}-${{ hashFiles('**/global.json', '**/*.csproj', '**/Directory.Packages.props') }}
+      - name: 'Run: Compile, Test, Pack'
         run: ./build.cmd Compile Test Pack
