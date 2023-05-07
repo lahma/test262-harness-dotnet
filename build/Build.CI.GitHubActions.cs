@@ -1,6 +1,6 @@
 using Nuke.Common.CI.GitHubActions;
 
-[GitHubActionsAttribute(
+[GitHubActions(
     "pr",
     GitHubActionsImage.WindowsLatest,
     GitHubActionsImage.UbuntuLatest,
@@ -8,10 +8,10 @@ using Nuke.Common.CI.GitHubActions;
     OnPullRequestIncludePaths = new[] { "**/*.*" },
     OnPullRequestExcludePaths = new[] { "**/*.md" },
     PublishArtifacts = false,
-    InvokedTargets = new[] { nameof(Compile), nameof(Test), nameof(Pack) },
-    CacheKeyFiles = new[] { "global.json", "src/**/*.csproj", "src/**/package.json" }),
+    JobConcurrencyCancelInProgress = true,
+    InvokedTargets = new[] { nameof(Compile), nameof(Test), nameof(Pack) })
 ]
-[GitHubActionsAttribute(
+[GitHubActions(
     "build",
     GitHubActionsImage.WindowsLatest,
     GitHubActionsImage.UbuntuLatest,
@@ -21,8 +21,7 @@ using Nuke.Common.CI.GitHubActions;
     OnPushExcludePaths = new[] { "**/*.md" },
     PublishArtifacts = true,
     InvokedTargets = new[] { nameof(Compile), nameof(Test), nameof(Pack), nameof(Publish) },
-    ImportSecrets = new [] { "NUGET_API_KEY", "MYGET_API_KEY" },
-    CacheKeyFiles = new[] { "global.json", "src/**/*.csproj", "src/**/package.json" })
+    ImportSecrets = new[] { "NUGET_API_KEY", "MYGET_API_KEY" })
 ]
 public partial class Build
 {
