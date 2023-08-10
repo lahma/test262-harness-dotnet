@@ -8,7 +8,6 @@ using Nuke.Common.CI.GitHubActions;
     OnPullRequestIncludePaths = new[] { "**/*.*" },
     OnPullRequestExcludePaths = new[] { "**/*.md" },
     PublishArtifacts = false,
-    JobConcurrencyCancelInProgress = true,
     InvokedTargets = new[] { nameof(Compile), nameof(Test), nameof(Pack) })
 ]
 [GitHubActions(
