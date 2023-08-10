@@ -13,6 +13,10 @@ public sealed class Test262File : IEquatable<Test262File>
     private const string YamlSectionStartMarker = "/*---";
     private const string YamlSectionEndMarker = "---*/";
 
+    private static readonly YamlScalarNode _phaseNode = new("phase");
+    private static readonly YamlScalarNode _typeNode = new("type");
+    private static readonly string _useStrictWithNewLine = "\"use strict\";" + Environment.NewLine;
+
     private string[] _features = Array.Empty<string>();
     private string[] _flags = Array.Empty<string>();
     private string[] _includes = Array.Empty<string>();
@@ -144,8 +148,8 @@ public sealed class Test262File : IEquatable<Test262File>
             throw new ArgumentException($"Test case {fileName} is invalid, cannot find YAML section end.");
         }
 
-        var yaml = contents.Substring(yamlStartIndex + YamlSectionStartMarker.Length, yamlEndIndex - YamlSectionEndMarker.Length - yamlStartIndex);
-        if (string.IsNullOrWhiteSpace(yaml))
+        var yaml = contents.AsMemory(yamlStartIndex + YamlSectionStartMarker.Length, yamlEndIndex - YamlSectionEndMarker.Length - yamlStartIndex);
+        if (yaml.IsEmpty)
         {
             throw new ArgumentException($"Test case {fileName} is invalid, cannot find YAML section.");
         }
@@ -154,7 +158,7 @@ public sealed class Test262File : IEquatable<Test262File>
         try
         {
             var yamlStream = new YamlStream();
-            yamlStream.Load(new StringReader(yaml));
+            yamlStream.Load(new MemoryReader(yaml));
             document = yamlStream.Documents[0];
         }
         catch (Exception ex)
@@ -194,8 +198,8 @@ public sealed class Test262File : IEquatable<Test262File>
                     break;
                 case "negative":
                     var source = (YamlMappingNode) node.Value;
-                    Enum.TryParse<TestingPhase>(source["phase"].ToString(), ignoreCase: true, out var phase);
-                    Enum.TryParse<ExpectedErrorType>(source["type"].ToString(), ignoreCase: true, out var expectedErrorType);
+                    Enum.TryParse<TestingPhase>(source[_phaseNode].ToString(), ignoreCase: true, out var phase);
+                    Enum.TryParse<ExpectedErrorType>(source[_typeNode].ToString(), ignoreCase: true, out var expectedErrorType);
 
                     test.NegativeTestCase = new NegativeTestCase(phase, expectedErrorType);
                     break;
@@ -256,7 +260,7 @@ public sealed class Test262File : IEquatable<Test262File>
 
         var clone = (Test262File) this.MemberwiseClone();
         clone.Strict = true;
-        clone.Program = "\"use strict\";" + Environment.NewLine + Program;
+        clone.Program = _useStrictWithNewLine + Program;
         return clone;
     }
 
