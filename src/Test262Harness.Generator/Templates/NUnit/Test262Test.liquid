@@ -62,7 +62,6 @@ public partial class TestHarness
 }
 
 
-[Timeout(20_000)]
 {% if Parallel -%}
 [Parallelizable(ParallelScope.All)]
 {% endif -%}

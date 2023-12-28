@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>netcoreapp3.1</TargetFramework>
+        <TargetFramework>net8.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <OutputType>Exe</OutputType>
@@ -9,10 +9,11 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="JavaScriptEngineSwitcher.Jint" Version="3.21.4" />
-      <PackageReference Include="JavaScriptEngineSwitcher.Jurassic" Version="3.21.0" />
-      <PackageReference Include="JavaScriptEngineSwitcher.NiL" Version="3.21.4" />
-      <PackageReference Include="Spectre.Console.Cli" Version="0.47.0" />
+      <PackageReference Include="JavaScriptEngineSwitcher.Jint" Version="3.23.5" />
+      <PackageReference Include="JavaScriptEngineSwitcher.Jurassic" Version="3.23.3" />
+      <PackageReference Include="JavaScriptEngineSwitcher.NiL" Version="3.23.5" />
+      <PackageReference Include="Spectre.Console.Cli" Version="0.48.0" />
+      <PackageReference Update="Microsoft.SourceLink.GitHub" Version="8.0.0" />
     </ItemGroup>
 
     <ItemGroup>
