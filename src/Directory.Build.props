@@ -26,13 +26,15 @@
     <LangVersion>latest</LangVersion>
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
 
-    <VersionPrefix>0.0.22</VersionPrefix>
+    <VersionPrefix>0.0.23</VersionPrefix>
 
     <CLSCompliant>true</CLSCompliant>
     <DebugSymbols>true</DebugSymbols>
 
     <AssemblyOriginatorKeyFile>../../Test262Harness.snk</AssemblyOriginatorKeyFile>
     <SignAssembly>false</SignAssembly>
+
+    <UseArtifactsOutput>true</UseArtifactsOutput>
 
   </PropertyGroup>
 
