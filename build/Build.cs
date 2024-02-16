@@ -14,7 +14,7 @@ using Nuke.Common.Utilities.Collections;
 using Nuke.Components;
 
 [ShutdownDotNetAfterServerBuild]
-partial class Build : NukeBuild, ITest, IPack
+partial class Build : NukeBuild, ITest, IPack, IPublish
 {
     /// Support plugins are available for:
     ///   - JetBrains ReSharper        https://nuke.build/resharper
