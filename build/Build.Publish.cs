@@ -5,7 +5,7 @@ using Nuke.Common.Git;
 using Nuke.Common.IO;
 using Nuke.Common.Tooling;
 using Nuke.Common.Tools.DotNet;
-
+using Nuke.Components;
 using static Nuke.Common.Tools.DotNet.DotNetTasks;
 
 public partial class Build
@@ -21,7 +21,7 @@ public partial class Build
 
     Target Publish => _ => _
         .OnlyWhenDynamic(() => IsRunningOnWindows && (GitRepository.IsOnMainOrMasterBranch() || IsTaggedBuild))
-        .DependsOn(Pack)
+        .DependsOn<IPack>()
         .Requires(() => NuGetApiKey, () => MyGetApiKey)
         .Executes(() =>
         {
@@ -38,7 +38,7 @@ public partial class Build
     Configure<DotNetNuGetPushSettings> PushSettingsBase => _ => _
         .SetSource(SourceToUse)
         .SetApiKey(ApiKeyToUse)
-        .SetSkipDuplicate(true);
+        .EnableSkipDuplicate();
 
     Configure<DotNetNuGetPushSettings> PushSettings => _ => _;
     Configure<DotNetNuGetPushSettings> PackagePushSettings => _ => _;

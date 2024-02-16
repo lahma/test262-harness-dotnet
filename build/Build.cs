@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Xml.Linq;
@@ -7,24 +8,21 @@ using Nuke.Common.CI;
 using Nuke.Common.Git;
 using Nuke.Common.IO;
 using Nuke.Common.ProjectModel;
+using Nuke.Common.Tooling;
 using Nuke.Common.Tools.DotNet;
 using Nuke.Common.Utilities.Collections;
-using static Nuke.Common.Tools.DotNet.DotNetTasks;
+using Nuke.Components;
 
 [ShutdownDotNetAfterServerBuild]
-partial class Build : NukeBuild
+partial class Build : NukeBuild, ITest, IPack
 {
     /// Support plugins are available for:
     ///   - JetBrains ReSharper        https://nuke.build/resharper
     ///   - JetBrains Rider            https://nuke.build/rider
     ///   - Microsoft VisualStudio     https://nuke.build/visualstudio
     ///   - Microsoft VSCode           https://nuke.build/vscode
-    public static int Main() => Execute<Build>(x => x.Compile);
+    public static int Main() => Execute<Build>(x => ((ICompile) x).Compile);
 
-    [Parameter("Configuration to build - Default is 'Debug' (local) or 'Release' (server)")] 
-    readonly Configuration Configuration = IsLocalBuild ? Configuration.Debug : Configuration.Release;
-
-    [Solution] readonly Solution Solution;
     [GitRepository] readonly GitRepository GitRepository;
 
     AbsolutePath SourceDirectory => RootDirectory / "src";
@@ -39,7 +37,7 @@ partial class Build : NukeBuild
 
     string DetermineVersionPrefix()
     {
-        var versionPrefix = GitRepository.Tags.SingleOrDefault(x => x.StartsWith("v"))?[1..];
+        var versionPrefix = GitRepository.Tags.SingleOrDefault(x => x.StartsWith('v'))?[1..];
         if (!string.IsNullOrWhiteSpace(versionPrefix))
         {
             IsTaggedBuild = true;
@@ -47,7 +45,7 @@ partial class Build : NukeBuild
         }
         else
         {
-            var propsDocument = XDocument.Parse((SourceDirectory / "Directory.Build.props").ReadAllText());
+            var propsDocument = XDocument.Parse((RootDirectory / "Directory.Build.props").ReadAllText());
             versionPrefix = propsDocument.Element("Project").Element("PropertyGroup").Element("VersionPrefix").Value;
             Serilog.Log.Information("Version prefix {VersionPrefix} read from Directory.Build.props", versionPrefix);
         }
@@ -69,14 +67,13 @@ partial class Build : NukeBuild
         }
 
         Serilog.Log.Information("BUILD SETUP");
-        Serilog.Log.Information("Configuration:\t{Configuration}", Configuration);
+        Serilog.Log.Information("Configuration:\t{Configuration}", ((ICompile) this).Configuration);
         Serilog.Log.Information("Version prefix:\t{VersionPrefix}", VersionPrefix);
         Serilog.Log.Information("Version suffix:\t{VersionSuffix}", VersionSuffix);
         Serilog.Log.Information("Tagged build:\t{IsTaggedBuild}", IsTaggedBuild);
     }
 
     Target Clean => _ => _
-        .Before(Restore)
         .Executes(() =>
         {
             SourceDirectory.GlobDirectories("**/bin", "**/obj").ForEach(x => x.DeleteDirectory());
@@ -84,52 +81,15 @@ partial class Build : NukeBuild
             ArtifactsDirectory.CreateOrCleanDirectory();
         });
 
-    Target Restore => _ => _
-        .Executes(() =>
-        {
-            DotNetRestore(s => s
-                .SetProjectFile(Solution));
-        });
+    public Configure<DotNetBuildSettings> CompileSettings => _ => _
+        .SetAssemblyVersion(VersionPrefix)
+        .SetFileVersion(VersionPrefix)
+        .SetInformationalVersion(VersionPrefix);
 
-    Target Compile => _ => _
-        .DependsOn(Restore)
-        .Executes(() =>
-        {
-            DotNetBuild(s => s
-                .SetProjectFile(Solution)
-                .SetConfiguration(Configuration)
-                .SetAssemblyVersion(VersionPrefix)
-                .SetFileVersion(VersionPrefix)
-                .SetInformationalVersion(VersionPrefix)
-                .SetDeterministic(IsServerBuild)
-                .SetContinuousIntegrationBuild(IsServerBuild)
-                .EnableNoRestore()
-            );
-        });
+    public IEnumerable<Project> TestProjects => ((ICompile) this).Solution.AllProjects.Where(x => x.Name.EndsWith("Tests"));
 
-    Target Test => _ => _
-        .DependsOn(Compile)
-        .Before(Pack, Publish)
-        .Executes(() =>
-        {
-            DotNetTest(s => s
-                .SetProjectFile(Solution)
-                .SetConfiguration(Configuration)
-                .EnableNoBuild()
-                .EnableNoRestore()
-            );
-        });
-
-    Target Pack => _ => _
-        .DependsOn(Compile)
-        .Executes(() =>
-        {
-            DotNetPack(s => s
-                .EnableNoBuild()
-                .SetConfiguration(Configuration)
-                .SetOutputDirectory(ArtifactsDirectory)
-                .SetVersionPrefix(VersionPrefix)
-                .SetVersionSuffix(VersionSuffix)
-            );
-        });
+    public Configure<DotNetPackSettings> PackSettings => _ => _
+        .SetOutputDirectory(ArtifactsDirectory)
+        .SetVersionPrefix(VersionPrefix)
+        .SetVersionSuffix(VersionSuffix);
 }

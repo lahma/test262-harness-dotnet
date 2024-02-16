@@ -1,4 +1,5 @@
 using Nuke.Common.CI.GitHubActions;
+using Nuke.Components;
 
 [GitHubActions(
     "pr",
@@ -9,7 +10,7 @@ using Nuke.Common.CI.GitHubActions;
     OnPullRequestExcludePaths = ["**/*.md"],
     PublishArtifacts = false,
     CacheKeyFiles = new string[0],
-    InvokedTargets = [nameof(Compile), nameof(Test), nameof(Pack)])
+    InvokedTargets = [nameof(ICompile.Compile), nameof(ITest.Test), nameof(IPack.Pack)])
 ]
 [GitHubActions(
     "build",
@@ -21,7 +22,7 @@ using Nuke.Common.CI.GitHubActions;
     OnPushExcludePaths = ["**/*.md"],
     PublishArtifacts = true,
     CacheKeyFiles = new string[0],
-    InvokedTargets = [nameof(Compile), nameof(Test), nameof(Pack), nameof(Publish)],
+    InvokedTargets = [nameof(ICompile.Compile), nameof(ITest.Test), nameof(IPack.Pack), nameof(Publish)],
     ImportSecrets = ["NUGET_API_KEY", "MYGET_API_KEY"])
 ]
 public partial class Build
