@@ -6,19 +6,18 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="SharpZipLib" Version="1.4.2" />
-    <PackageReference Include="YamlDotNet" Version="15.1.1" />
-    <PackageReference Include="Zio" Version="0.17.0" />
-    <PackageReference Include="ZString" Version="2.5.1" />
-    <PackageReference Update="Microsoft.SourceLink.GitHub" Version="8.0.0" />
+    <PackageReference Include="SharpZipLib" />
+    <PackageReference Include="YamlDotNet" />
+    <PackageReference Include="Zio" />
+    <PackageReference Include="ZString" />
   </ItemGroup>
 
   <ItemGroup Condition=" '$(TargetFramework)' == 'netstandard2.0' ">
-    <PackageReference Include="System.Memory" Version="4.5.5" />
+    <PackageReference Include="System.Memory" />
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="../../README.md" Pack="true" PackagePath="\"/>
+    <None Include="../../README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>

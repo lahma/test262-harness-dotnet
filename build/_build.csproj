@@ -10,6 +10,7 @@
     <NukeTelemetryVersion>1</NukeTelemetryVersion>
     <EnableUnsafeBinaryFormatterSerialization>true</EnableUnsafeBinaryFormatterSerialization>
     <UseArtifactsOutput>false</UseArtifactsOutput>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
   </PropertyGroup>
 
   <ItemGroup>
