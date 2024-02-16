@@ -89,7 +89,6 @@ partial class Build : NukeBuild, ITest, IPack, IPublish
     public IEnumerable<Project> TestProjects => ((ICompile) this).Solution.AllProjects.Where(x => x.Name.EndsWith("Tests"));
 
     public Configure<DotNetPackSettings> PackSettings => _ => _
-        .SetOutputDirectory(ArtifactsDirectory)
         .SetVersionPrefix(VersionPrefix)
         .SetVersionSuffix(VersionSuffix);
 }
