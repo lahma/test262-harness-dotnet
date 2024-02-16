@@ -9,7 +9,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="JavaScriptEngineSwitcher.Jint" Version="3.23.5" />
+      <PackageReference Include="JavaScriptEngineSwitcher.Jint" Version="3.23.9" />
       <PackageReference Include="JavaScriptEngineSwitcher.Jurassic" Version="3.23.3" />
       <PackageReference Include="JavaScriptEngineSwitcher.NiL" Version="3.23.5" />
       <PackageReference Include="Spectre.Console.Cli" Version="0.48.0" />
