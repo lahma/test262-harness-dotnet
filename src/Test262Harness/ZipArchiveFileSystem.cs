@@ -15,21 +15,21 @@ internal sealed class ZipArchiveFileSystem : MemoryFileSystem
         _rootName = rootName;
         _archive = new ZipFile(File.OpenRead(file.FullName));
 
-        var item1 = rootName.TrimEnd('/') + "/" + "test";
-        var item2 = rootName.TrimEnd('/') + "/" + "harness";
+        var item1 = $"{rootName.TrimEnd('/')}/test";
+        var item2 = $"{rootName.TrimEnd('/')}/harness";
 
         // trigger file system creation to build a faster tree
         var createdDirectories = new HashSet<UPath>();
         foreach (ZipEntry entry in _archive)
         {
             var name = entry.Name;
-            if (!name.StartsWith(item1) && !name.StartsWith(item2))
+            if (!name.StartsWith(item1, StringComparison.Ordinal) && !name.StartsWith(item2, StringComparison.Ordinal))
             {
                 continue;
             }
 
             var transformed = name.Substring(rootName.Length);
-            if (name.EndsWith("/"))
+            if (name.EndsWith('/'))
             {
                 // directory
                 if (createdDirectories.Add(transformed))

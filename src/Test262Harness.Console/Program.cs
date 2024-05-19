@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Text.Json;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -16,6 +17,11 @@ return app.Run(args);
 [Description("Generates test suite")]
 internal sealed class GenerateCommand : AsyncCommand<GenerateCommand.Settings>
 {
+    private static readonly JsonSerializerOptions _serializerOptions = new()
+    {
+        ReadCommentHandling = JsonCommentHandling.Skip
+    };
+
     public sealed class Settings : CommandSettings
     {
         [Description("GitHub SHA for test262 repository commit")]
@@ -53,20 +59,15 @@ internal sealed class GenerateCommand : AsyncCommand<GenerateCommand.Settings>
 
         if (File.Exists(settingsFilePath))
         {
-            var serializerOptions = new JsonSerializerOptions
-            {
-                ReadCommentHandling = JsonCommentHandling.Skip
-            };
-
             await using var stream = File.OpenRead(settingsFilePath);
-            options = await JsonSerializer.DeserializeAsync<TestSuiteGeneratorOptions>(stream, serializerOptions);
+            options = await JsonSerializer.DeserializeAsync<TestSuiteGeneratorOptions>(stream, _serializerOptions);
             usedSettingsFilePath = settingsFilePath;
 
-            AnsiConsole.MarkupLine("Read settings from [yellow]{0}[/]", settingsFilePath);
+            AnsiConsole.MarkupLine(CultureInfo.InvariantCulture, "Read settings from [yellow]{0}[/]", settingsFilePath);
         }
         else
         {
-            AnsiConsole.MarkupLine("Settings file [yellow]{0}[/] not found, using command line options", settingsFilePath);
+            AnsiConsole.MarkupLine(CultureInfo.InvariantCulture, "Settings file [yellow]{0}[/] not found, using command line options", settingsFilePath);
         }
 
         options ??= new TestSuiteGeneratorOptions();
@@ -78,13 +79,13 @@ internal sealed class GenerateCommand : AsyncCommand<GenerateCommand.Settings>
             options.LogInfo = (s, objects) =>
             {
                 s = s.Replace("{0}", "[yellow]{0}[/]").Replace("{1}", "[yellow]{1}[/]");
-                AnsiConsole.MarkupLine(s, objects);
+                AnsiConsole.MarkupLine(CultureInfo.InvariantCulture, s, objects);
             };
             options.LogError = (s, objects) =>
             {
-                s = "[red]" + s + "[/]";
+                s = $"[red]{s}[/]";
                 s = s.Replace("{0}", "[yellow]{0}[/]").Replace("{1}", "[yellow]{1}[/]");
-                AnsiConsole.MarkupLine(s, objects);
+                AnsiConsole.MarkupLine(CultureInfo.InvariantCulture, s, objects);
             };
         };
 
@@ -154,9 +155,9 @@ internal sealed class GenerateCommand : AsyncCommand<GenerateCommand.Settings>
             var lines = await File.ReadAllLinesAsync(options.ExcludedFilesSource);
 
             var valid = lines
-                .Where(x => !string.IsNullOrWhiteSpace(x) && !x.StartsWith("#"))
+                .Where(x => !string.IsNullOrWhiteSpace(x) && !x.StartsWith('#'))
                 // support esprima format
-                .Select(x => x.StartsWith("test/") ? x.Substring("test/".Length) : x);
+                .Select(x => x.StartsWith("test/", StringComparison.OrdinalIgnoreCase) ? x.Substring("test/".Length) : x);
 
             options.ExcludedFiles = options.ExcludedFiles.Concat(valid).ToArray();
         }

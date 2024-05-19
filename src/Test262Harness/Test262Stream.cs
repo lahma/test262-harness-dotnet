@@ -10,7 +10,9 @@ namespace Test262Harness;
 /// Single test case file can produce either one or two <see cref="Test262File"/> instances based on whether it's
 /// a module (always one) or a script file (two if both strict and non-strict mode will be tested).
 /// </remarks>
+#pragma warning disable CA1711
 public sealed class Test262Stream
+#pragma warning restore CA1711
 {
     private Test262Stream(Test262StreamOptions options)
     {
@@ -76,7 +78,7 @@ public sealed class Test262Stream
     /// <returns>A stream that can be enumerated.</returns>
     private static Test262Stream Create(Test262StreamOptions options)
     {
-        options.Validate();
+        Test262StreamOptions.Validate();
         return new Test262Stream(options);
     }
 
@@ -88,7 +90,7 @@ public sealed class Test262Stream
     public Test262File GetTestFile(string fileName)
     {
         var fileSystem = Options.FileSystem;
-        using var stream = fileSystem.OpenFile("/test/" + fileName, FileMode.Open, FileAccess.Read, FileShare.Read);
+        using var stream = fileSystem.OpenFile($"/test/{fileName}", FileMode.Open, FileAccess.Read, FileShare.Read);
         var test262Files = Test262File.FromStream(stream, fileName, false).Single();
         return test262Files;
     }
@@ -132,12 +134,12 @@ public sealed class Test262Stream
     {
         subDirectories ??= Options.SubDirectories;
 
-        bool SearchPredicate(ref FileSystemItem item) => item.FullName.EndsWith(".js") && item.FullName.IndexOf("_FIXTURE", StringComparison.OrdinalIgnoreCase) == -1;
+        bool SearchPredicate(ref FileSystemItem item) => item.FullName.EndsWith(".js", StringComparison.OrdinalIgnoreCase) && !item.FullName.Contains("_FIXTURE", StringComparison.OrdinalIgnoreCase);
 
         IEnumerable<FileSystemItem> result = Array.Empty<FileSystemItem>();
         foreach (var subDirectory in subDirectories)
         {
-            result = result.Concat(Options.FileSystem.EnumerateItems("/test/" + subDirectory, SearchOption.AllDirectories, SearchPredicate));
+            result = result.Concat(Options.FileSystem.EnumerateItems($"/test/{subDirectory}", SearchOption.AllDirectories, SearchPredicate));
         }
 
         return result;

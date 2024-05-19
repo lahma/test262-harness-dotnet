@@ -25,7 +25,7 @@ public static class Test262StreamExtensions
     {
         if (string.IsNullOrWhiteSpace(commitSha))
         {
-            throw new ArgumentException("Invalid commit SHA: " + commitSha, nameof(commitSha));
+            throw new ArgumentException($"Invalid commit SHA: {commitSha}", nameof(commitSha));
         }
 
         tempPath ??= Path.GetTempPath();
@@ -57,7 +57,7 @@ public static class Test262StreamExtensions
             await Download(commitSha, delete, tempFile, tempOptions.LogInfo);
         }
 
-        var zipSubDirectory = "test262-" + commitSha;
+        var zipSubDirectory = $"test262-{commitSha}";
 
         if (extract)
         {
@@ -82,7 +82,7 @@ public static class Test262StreamExtensions
         string commitSha,
         bool delete,
         string tempFile,
-        LogDelegate logger)
+        Logger logger)
     {
         await _downloadLock.WaitAsync();
 

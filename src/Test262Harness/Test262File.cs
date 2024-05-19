@@ -15,7 +15,7 @@ public sealed class Test262File : IEquatable<Test262File>
 
     private static readonly YamlScalarNode _phaseNode = new("phase");
     private static readonly YamlScalarNode _typeNode = new("type");
-    private static readonly string _useStrictWithNewLine = "\"use strict\";" + Environment.NewLine;
+    private static readonly string _useStrictWithNewLine = $"\"use strict\";{Environment.NewLine}";
 
     private string[] _features = Array.Empty<string>();
     private string[] _flags = Array.Empty<string>();
@@ -163,7 +163,7 @@ public sealed class Test262File : IEquatable<Test262File>
         }
         catch (Exception ex)
         {
-            throw new ArgumentException($"Could not lod YAML content from file {fileName}: " + ex.Message, ex);
+            throw new ArgumentException($"Could not lod YAML content from file {fileName}: {ex.Message}", ex);
         }
 
         var onlyStrict = false;

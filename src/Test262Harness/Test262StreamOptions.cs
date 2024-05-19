@@ -2,7 +2,7 @@ using Zio;
 
 namespace Test262Harness;
 
-public delegate void LogDelegate(string message, params object[] args);
+public delegate void Logger(string message, params object[] args);
 
 public sealed class Test262StreamOptions
 {
@@ -37,14 +37,14 @@ public sealed class Test262StreamOptions
     /// <summary>
     /// Logger to call when informing about progress.
     /// </summary>
-    public LogDelegate LogInfo { get; set; } = Console.WriteLine;
+    public Logger LogInfo { get; set; } = Console.WriteLine;
 
     /// <summary>
     /// Logger to call when informing about error.
     /// </summary>
-    public LogDelegate LogError { get; set; } = Console.Error.WriteLine;
+    public Logger LogError { get; set; } = Console.Error.WriteLine;
 
-    internal void Validate()
+    internal static void Validate()
     {
     }
 }

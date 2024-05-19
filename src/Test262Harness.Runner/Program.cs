@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.Reflection;
 using JavaScriptEngineSwitcher.Core;
 using JavaScriptEngineSwitcher.Jint;
@@ -15,7 +16,7 @@ public static class Program
         var rootTestDirectory = Path.Combine(projectRoot, "node_modules", "test262");
         if (!Directory.Exists(rootTestDirectory))
         {
-            AnsiConsole.Markup("[red]Could not find test262 test suite from {0}, did you forget to run npm ci?[/]", rootTestDirectory);
+            AnsiConsole.Markup(CultureInfo.InvariantCulture, "[red]Could not find test262 test suite from {0}, did you forget to run npm ci?[/]", rootTestDirectory);
             return -1;
         }
 
@@ -24,13 +25,13 @@ public static class Program
             options.LogInfo = (s, objects) =>
             {
                 s = s.Replace("{0}", "[yellow]{0}[/]").Replace("{1}", "[yellow]{1}[/]");
-                AnsiConsole.MarkupLine(s, objects);
+                AnsiConsole.MarkupLine(CultureInfo.InvariantCulture, s, objects);
             };
             options.LogError = (s, objects) =>
             {
-                s = "[red]" + s + "[/]";
+                s = $"[red]{s}[/]";
                 s = s.Replace("{0}", "[yellow]{0}[/]").Replace("{1}", "[yellow]{1}[/]");
-                AnsiConsole.MarkupLine(s, objects);
+                AnsiConsole.MarkupLine(CultureInfo.InvariantCulture, s, objects);
             };
         });
 
@@ -67,7 +68,7 @@ public static class Program
                 readTask.StopTask();
 
                 AnsiConsole.WriteLine();
-                AnsiConsole.MarkupLine("Found [green]{0}[/] test cases to test against", test262Files.Count);
+                AnsiConsole.MarkupLine(CultureInfo.InvariantCulture, "Found [green]{0}[/] test cases to test against", test262Files.Count);
 
                 foreach (var pair in targets)
                 {
@@ -140,10 +141,10 @@ public static class Program
         AnsiConsole.WriteLine();
         AnsiConsole.WriteLine("Summary:");
 
-        AnsiConsole.MarkupLine(" [green]:check_mark: {0}[/] valid programs parsed without error", testExecutionSummary.Allowed.Success.Count);
-        AnsiConsole.MarkupLine(" [green]::check_mark: {0}[/] invalid programs produced a parsing error", testExecutionSummary.Allowed.Failure.Count);
-        AnsiConsole.MarkupLine(" [green]::check_mark: {0}[/] invalid programs did not produce a parsing error (and in allow file)", testExecutionSummary.Allowed.FalsePositive.Count);
-        AnsiConsole.MarkupLine(" [green]::check_mark: {0}[/] valid programs produced a parsing error (and in allow file)", testExecutionSummary.Allowed.FalseNegative.Count);
+        AnsiConsole.MarkupLine(CultureInfo.InvariantCulture, " [green]:check_mark: {0}[/] valid programs parsed without error", testExecutionSummary.Allowed.Success.Count);
+        AnsiConsole.MarkupLine(CultureInfo.InvariantCulture, " [green]::check_mark: {0}[/] invalid programs produced a parsing error", testExecutionSummary.Allowed.Failure.Count);
+        AnsiConsole.MarkupLine(CultureInfo.InvariantCulture, " [green]::check_mark: {0}[/] invalid programs did not produce a parsing error (and in allow file)", testExecutionSummary.Allowed.FalsePositive.Count);
+        AnsiConsole.MarkupLine(CultureInfo.InvariantCulture, " [green]::check_mark: {0}[/] valid programs produced a parsing error (and in allow file)", testExecutionSummary.Allowed.FalseNegative.Count);
 
         var items = new (ConcurrentBag<Test262File> Tests, string Label)[]
         {
@@ -158,7 +159,7 @@ public static class Program
 
             foreach (var (tests, label) in items)
             {
-                if (tests.Count == 0)
+                if (tests.IsEmpty)
                 {
                     continue;
                 }
