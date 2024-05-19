@@ -38,7 +38,7 @@ namespace Test262Harness.TestSuite.Generator
 
         private static string ConvertDashesToCamelCase(string input)
         {
-            if (input.IndexOf('-') == -1)
+            if (!input.Contains('-'))
             {
                 // no conversion necessary
                 return input;

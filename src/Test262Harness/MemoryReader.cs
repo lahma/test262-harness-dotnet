@@ -1,3 +1,5 @@
+#pragma warning disable CA1513
+
 namespace System.IO;
 
 internal sealed class MemoryReader : TextReader

@@ -26,6 +26,8 @@
     <LangVersion>latest</LangVersion>
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
 
+    <AnalysisLevel>latest-Recommended</AnalysisLevel>
+
     <VersionPrefix>1.0.0</VersionPrefix>
 
     <CLSCompliant>true</CLSCompliant>

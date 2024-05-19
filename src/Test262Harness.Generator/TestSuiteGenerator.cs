@@ -27,12 +27,12 @@ public class TestSuiteGenerator
             // translate esprima format
             .SelectMany(x =>
             {
-                if (x.EndsWith("(default)"))
+                if (x.EndsWith("(default)", StringComparison.Ordinal))
                 {
                     return new (string Name, bool Strict)[] { (x.Substring(0, x.Length - "(default)".Length), false) };
                 }
 
-                if (x.EndsWith("(strict mode)"))
+                if (x.EndsWith("(strict mode)", StringComparison.Ordinal))
                 {
                     return new (string Name, bool Strict)[] { (x.Substring(0, x.Length - "(strict mode)".Length), true) };
                 }
@@ -103,7 +103,7 @@ public class TestSuiteGenerator
 
             var model = new GeneratorModel
             {
-                TestClassName = ConversionUtilities.ConvertToUpperCamelCase(item) + "Tests",
+                TestClassName = $"{ConversionUtilities.ConvertToUpperCamelCase(item)}Tests",
                 Namespace = _options.Namespace,
                 TestCaseGroupings = tests
                     .GroupBy(x =>
@@ -179,7 +179,7 @@ public class TestSuiteGenerator
     private string? GetExcludeReason(Test262File file)
     {
         const string TestPrefix = "test/";
-        var fileName = file.FileName.StartsWith(TestPrefix) ? file.FileName.Substring(TestPrefix.Length) : file.FileName;
+        var fileName = file.FileName.StartsWith(TestPrefix, StringComparison.OrdinalIgnoreCase) ? file.FileName.Substring(TestPrefix.Length) : file.FileName;
         fileName = fileName.ToLowerInvariant();
 
         _excludedFiles.TryGetValue((fileName, file.Strict), out var excludeReason);
@@ -227,7 +227,7 @@ public class TestSuiteGenerator
         var manifestResourceStream = type.Assembly.GetManifestResourceStream(resourceName);
         if (manifestResourceStream is null)
         {
-            throw new Exception("Could not find template " + resourceName);
+            throw new ArgumentException($"Could not find template {resourceName}");
         }
 
         string template;

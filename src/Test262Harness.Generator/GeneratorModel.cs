@@ -21,7 +21,7 @@ public class TestCaseGroup
         {
             // ignore the whole method
             var reasons = testCases.Select(x => x.IgnoreReason).Distinct().ToList();
-            if (reasons.Count > 1 && reasons.All(r => r != null && r.StartsWith("File ")))
+            if (reasons.Count > 1 && reasons.TrueForAll(r => r != null && r.StartsWith("File ", StringComparison.OrdinalIgnoreCase)))
             {
                 IgnoreReason = "All files ignored";
             }
@@ -43,7 +43,7 @@ public class TestCase
 {
     public TestCase(Test262File file, string? ignoreReason)
     {
-        FileName = file.FileName.StartsWith("test/") ? file.FileName[5..] : file.FileName;
+        FileName = file.FileName.StartsWith("test/", StringComparison.OrdinalIgnoreCase) ? file.FileName[5..] : file.FileName;
         Category = file.Features.Length > 0 || file.Flags.Length > 0
             ? string.Join(",", file.Features.ToArray().Concat(file.Flags.ToArray()))
             : null;
