@@ -1,3 +1,4 @@
+using System.Buffers;
 using YamlDotNet.RepresentationModel;
 
 namespace Test262Harness;
@@ -129,19 +130,33 @@ public sealed class Test262File : IEquatable<Test262File>
         fileName = NormalizedFilePath(fileName);
 
         string contents;
-        using (var streamReader = new StreamReader(stream))
+        const int BufferSize = 4096;
+        var buffer = ArrayPool<char>.Shared.Rent(BufferSize);
+        try
         {
-            contents = streamReader.ReadToEnd();
+            int count;
+            using var streamReader = new StreamReader(stream);
+            using var rawChars = StringBuilderPool.GetInstance();
+            while ((count = streamReader.ReadBlock(buffer, 0, BufferSize)) > 0)
+            {
+                rawChars.Builder.Append(buffer, 0, count);
+            }
+
+            contents = rawChars.ToString();
+        }
+        finally
+        {
+            ArrayPool<char>.Shared.Return(buffer);
         }
 
-        var yamlStartIndex = contents.IndexOf(YamlSectionStartMarker, StringComparison.OrdinalIgnoreCase);
+        var yamlStartIndex = contents.IndexOf(YamlSectionStartMarker, StringComparison.Ordinal);
 
         if (yamlStartIndex < 0)
         {
             throw new ArgumentException($"Test case {fileName} is invalid, cannot find YAML section start.");
         }
 
-        var yamlEndIndex = contents.IndexOf(YamlSectionEndMarker, yamlStartIndex, StringComparison.OrdinalIgnoreCase);
+        var yamlEndIndex = contents.IndexOf(YamlSectionEndMarker, yamlStartIndex, StringComparison.Ordinal);
 
         if (yamlEndIndex < 0)
         {
