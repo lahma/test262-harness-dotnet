@@ -14,7 +14,7 @@ public sealed class Test262StreamOptions
     public IFileSystem FileSystem { get; set; }
 
     /// <summary>
-    /// Sub-directories to search. Defaults to: "annexB", "built-ins", "intl402", "language"
+    /// Subdirectories to search. Defaults to: "annexB", "built-ins", "intl402", "language"
     /// </summary>
     public string[] SubDirectories { get; set; } = { "annexB", "built-ins", "intl402", "language" };
 
