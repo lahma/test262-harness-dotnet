@@ -40,11 +40,13 @@ jobs:
           MYGET_API_KEY: ${{ secrets.MYGET_API_KEY }}
       - name: 'Publish: test-results'
         uses: actions/upload-artifact@v4
+        if: runner.os == 'Windows'
         with:
           name: test-results
           path: artifacts/test-results
       - name: 'Publish: packages'
         uses: actions/upload-artifact@v4
+        if: runner.os == 'Windows'
         with:
           name: packages
           path: artifacts/packages
@@ -60,11 +62,13 @@ jobs:
           MYGET_API_KEY: ${{ secrets.MYGET_API_KEY }}
       - name: 'Publish: test-results'
         uses: actions/upload-artifact@v4
+        if: runner.os == 'Windows'
         with:
           name: test-results
           path: artifacts/test-results
       - name: 'Publish: packages'
         uses: actions/upload-artifact@v4
+        if: runner.os == 'Windows'
         with:
           name: packages
           path: artifacts/packages

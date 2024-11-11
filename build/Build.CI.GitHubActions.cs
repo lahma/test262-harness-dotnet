@@ -11,7 +11,8 @@ using Nuke.Components;
     PublishArtifacts = false,
     CacheKeyFiles = [],
     InvokedTargets = [nameof(ICompile.Compile), nameof(ITest.Test), nameof(IPack.Pack)],
-    ConcurrencyCancelInProgress = true)
+    ConcurrencyCancelInProgress = true,
+    PublishCondition = "runner.os == 'Windows'")
 ]
 [GitHubActions(
     "build",
@@ -24,6 +25,7 @@ using Nuke.Components;
     PublishArtifacts = true,
     CacheKeyFiles = [],
     InvokedTargets = [nameof(ICompile.Compile), nameof(ITest.Test), nameof(IPack.Pack), nameof(Publish)],
-    ImportSecrets = ["NUGET_API_KEY", "MYGET_API_KEY"])
+    ImportSecrets = ["NUGET_API_KEY", "MYGET_API_KEY"],
+    PublishCondition = "runner.os == 'Windows'")
 ]
 public partial class Build;
