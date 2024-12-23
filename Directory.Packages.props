@@ -8,7 +8,7 @@
     <PackageVersion Include="FluentAssertions" Version="7.0.0" />
     <PackageVersion Include="Fluid.Core" Version="2.16.0" />
     <PackageVersion Include="Glob" Version="1.1.9" />
-    <PackageVersion Include="JavaScriptEngineSwitcher.Jint" Version="3.27.2" />
+    <PackageVersion Include="JavaScriptEngineSwitcher.Jint" Version="3.27.3" />
     <PackageVersion Include="JavaScriptEngineSwitcher.Jurassic" Version="3.27.3" />
     <PackageVersion Include="JavaScriptEngineSwitcher.NiL" Version="3.26.1" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
