@@ -237,7 +237,7 @@ public class TestSuiteGenerator
         }
 
         using var sha = new HMACSHA256();
-        var hash = BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(template))).Replace("-", "").ToLowerInvariant();
+        var hash = Convert.ToHexString(sha.ComputeHash(Encoding.UTF8.GetBytes(template)));
 
         return (_parser.Parse(template), hash);
     }
