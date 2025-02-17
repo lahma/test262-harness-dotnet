@@ -11,7 +11,7 @@
     <PackageVersion Include="JavaScriptEngineSwitcher.Jint" Version="3.28.0" />
     <PackageVersion Include="JavaScriptEngineSwitcher.Jurassic" Version="3.27.3" />
     <PackageVersion Include="JavaScriptEngineSwitcher.NiL" Version="3.26.1" />
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.13.0" />
     <PackageVersion Include="Nuke.Components" Version="8.1.4" />
     <PackageVersion Include="NUnit" Version="4.3.2" />
     <PackageVersion Include="NUnit.Analyzers" Version="4.6.0" />
