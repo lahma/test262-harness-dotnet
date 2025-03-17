@@ -5,7 +5,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
-    <PackageVersion Include="FluentAssertions" Version="7.1.0" />
+    <PackageVersion Include="FluentAssertions" Version="7.2.0" />
     <PackageVersion Include="Fluid.Core" Version="2.19.0" />
     <PackageVersion Include="Glob" Version="1.1.9" />
     <PackageVersion Include="JavaScriptEngineSwitcher.Jint" Version="3.29.1" />
