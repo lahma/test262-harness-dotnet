@@ -138,10 +138,10 @@ public class TestSuiteGenerator
                     .Select(x =>
                     {
                         var testCases = x
-                            .Select(x =>
+                            .Select(file =>
                             {
-                                var excludeReason = directoryExcludeReason ?? GetExcludeReason(x);
-                                return new TestCase(x, excludeReason);
+                                var excludeReason = directoryExcludeReason ?? GetExcludeReason(file);
+                                return new TestCase(file, excludeReason);
                             })
                             .OrderBy(x => x.FileName)
                             .ToList();
