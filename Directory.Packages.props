@@ -6,9 +6,9 @@
   <ItemGroup>
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
     <PackageVersion Include="FluentAssertions" Version="[7.2.0]" />
-    <PackageVersion Include="Fluid.Core" Version="2.24.0" />
+    <PackageVersion Include="Fluid.Core" Version="2.25.0" />
     <PackageVersion Include="Glob" Version="1.1.9" />
-    <PackageVersion Include="JavaScriptEngineSwitcher.Jint" Version="3.30.0" />
+    <PackageVersion Include="JavaScriptEngineSwitcher.Jint" Version="3.30.2" />
     <PackageVersion Include="JavaScriptEngineSwitcher.Jurassic" Version="3.29.0" />
     <PackageVersion Include="JavaScriptEngineSwitcher.NiL" Version="3.30.0" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
