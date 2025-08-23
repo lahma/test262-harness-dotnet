@@ -29,12 +29,12 @@ public class TestSuiteGenerator
             {
                 if (x.EndsWith("(default)", StringComparison.Ordinal))
                 {
-                    return new (string Name, bool Strict)[] { (x.Substring(0, x.Length - "(default)".Length), false) };
+                    return [(x.Substring(0, x.Length - "(default)".Length), false)];
                 }
 
                 if (x.EndsWith("(strict mode)", StringComparison.Ordinal))
                 {
-                    return new (string Name, bool Strict)[] { (x.Substring(0, x.Length - "(strict mode)".Length), true) };
+                    return [(x.Substring(0, x.Length - "(strict mode)".Length), true)];
                 }
                 else
                 {
@@ -86,7 +86,7 @@ public class TestSuiteGenerator
         var (testTemplate, testHash) = await GetTemplate("Tests");
         foreach (var item in stream.Options.SubDirectories)
         {
-            var tests = stream.GetTestFiles(new [] { item }).ToList();
+            var tests = stream.GetTestFiles([item]).ToList();
 
             if (tests.Count == 0)
             {

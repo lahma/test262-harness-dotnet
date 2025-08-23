@@ -136,7 +136,7 @@ public sealed class Test262Stream
 
         bool SearchPredicate(ref FileSystemItem item) => item.FullName.EndsWith(".js", StringComparison.OrdinalIgnoreCase) && !item.FullName.Contains("_FIXTURE", StringComparison.OrdinalIgnoreCase);
 
-        IEnumerable<FileSystemItem> result = Array.Empty<FileSystemItem>();
+        IEnumerable<FileSystemItem> result = [];
         foreach (var subDirectory in subDirectories)
         {
             result = result.Concat(Options.FileSystem.EnumerateItems($"/test/{subDirectory}", SearchOption.AllDirectories, SearchPredicate));

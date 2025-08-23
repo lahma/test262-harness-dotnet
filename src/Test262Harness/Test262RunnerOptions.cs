@@ -7,7 +7,7 @@ public sealed class Test262RunnerOptions
     public int MaxDegreeOfParallelism { get; set; } = Environment.ProcessorCount;
 
     [Description("List of features to filter for. Example: BigInt,Atomics")]
-    public string[] Features { get; set; } = Array.Empty<string>();
+    public string[] Features { get; set; } = [];
 
     [Description("Root test262 directory and is used to locate the includes directory.")]
     public string Test262Dir { get; set; } = "";

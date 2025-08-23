@@ -16,7 +16,7 @@ public sealed class Test262StreamOptions
     /// <summary>
     /// Subdirectories to search. Defaults to: "annexB", "built-ins", "intl402", "language"
     /// </summary>
-    public string[] SubDirectories { get; set; } = { "annexB", "built-ins", "intl402", "language" };
+    public string[] SubDirectories { get; set; } = ["annexB", "built-ins", "intl402", "language"];
 
     /// <summary>
     /// Possibility to filter files before they are going to be parsed.

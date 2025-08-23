@@ -18,10 +18,10 @@ public sealed class Test262File : IEquatable<Test262File>
     private static readonly YamlScalarNode _typeNode = new("type");
     private static readonly string _useStrictWithNewLine = $"\"use strict\";{Environment.NewLine}";
 
-    private string[] _features = Array.Empty<string>();
-    private string[] _flags = Array.Empty<string>();
-    private string[] _includes = Array.Empty<string>();
-    private string[] _locale = Array.Empty<string>();
+    private string[] _features = [];
+    private string[] _flags = [];
+    private string[] _includes = [];
+    private string[] _locale = [];
 
     private Test262File(string fileName)
     {
@@ -289,7 +289,7 @@ public sealed class Test262File : IEquatable<Test262File>
         var sequenceNode = (YamlSequenceNode) node;
         if (sequenceNode.Children.Count == 0)
         {
-            return Array.Empty<string>();
+            return [];
         }
 
         var result = new string[sequenceNode.Children.Count];

@@ -14,7 +14,7 @@ public class RunnerSettings : CommandSettings
     public int Threads { get; set; } = Environment.ProcessorCount;
 
     [Description("Comma-separated list of features to filter for. Example: --features=\"BigInt,Atomics\"")]
-    public string[] Features { get; set; } = Array.Empty<string>();
+    public string[] Features { get; set; } = [];
 
     [Description("Root test262 directory and is used to locate the includes directory.")]
     [CommandOption("test262Dir")]

@@ -15,10 +15,10 @@ public class TestSuiteGeneratorOptions
     public string Namespace { get; set; } = "Test262Harness.TestSuite";
     public bool Parallel { get; set; } = true;
 
-    public string[] ExcludedFeatures { get; set; } = Array.Empty<string>();
-    public string[] ExcludedFlags { get; set; } = Array.Empty<string>();
-    public string[] ExcludedDirectories { get; set; } = Array.Empty<string>();
-    public string[] ExcludedFiles { get; set; } = Array.Empty<string>();
+    public string[] ExcludedFeatures { get; set; } = [];
+    public string[] ExcludedFlags { get; set; } = [];
+    public string[] ExcludedDirectories { get; set; } = [];
+    public string[] ExcludedFiles { get; set; } = [];
 
     public string ExcludedFilesSource { get; set; } = "";
 }
