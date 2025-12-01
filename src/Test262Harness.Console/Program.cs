@@ -2,6 +2,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Test262Harness;
@@ -19,6 +20,7 @@ internal sealed class GenerateCommand : AsyncCommand<GenerateCommand.Settings>
 {
     private static readonly JsonSerializerOptions _serializerOptions = new()
     {
+        Converters = { new JsonStringEnumConverter() },
         ReadCommentHandling = JsonCommentHandling.Skip
     };
 
@@ -51,7 +53,7 @@ internal sealed class GenerateCommand : AsyncCommand<GenerateCommand.Settings>
         public string SettingsFile { get; set; } = "";
     }
 
-    public override async Task<int> ExecuteAsync([NotNull] CommandContext context, [NotNull] Settings settings)
+    public override async Task<int> ExecuteAsync([NotNull] CommandContext context, [NotNull] Settings settings, CancellationToken cancellationToken)
     {
         TestSuiteGeneratorOptions? options = null;
         var settingsFilePath = Path.Combine(Environment.CurrentDirectory, settings.SettingsFile);
@@ -60,7 +62,7 @@ internal sealed class GenerateCommand : AsyncCommand<GenerateCommand.Settings>
         if (File.Exists(settingsFilePath))
         {
             await using var stream = File.OpenRead(settingsFilePath);
-            options = await JsonSerializer.DeserializeAsync<TestSuiteGeneratorOptions>(stream, _serializerOptions);
+            options = await JsonSerializer.DeserializeAsync<TestSuiteGeneratorOptions>(stream, _serializerOptions, cancellationToken);
             usedSettingsFilePath = settingsFilePath;
 
             AnsiConsole.MarkupLine(CultureInfo.InvariantCulture, "Read settings from [yellow]{0}[/]", settingsFilePath);
