@@ -10,7 +10,7 @@
     <PackageVersion Include="Glob" Version="1.1.9" />
     <PackageVersion Include="JavaScriptEngineSwitcher.Jint" Version="3.30.4" />
     <PackageVersion Include="JavaScriptEngineSwitcher.Jurassic" Version="3.29.0" />
-    <PackageVersion Include="JavaScriptEngineSwitcher.NiL" Version="3.30.0" />
+    <PackageVersion Include="JavaScriptEngineSwitcher.NiL" Version="3.30.3" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
     <PackageVersion Include="NUnit" Version="4.4.0" />
     <PackageVersion Include="NUnit.Analyzers" Version="4.11.2" />
