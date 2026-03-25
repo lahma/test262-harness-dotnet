@@ -6,5 +6,7 @@ public enum ExpectedErrorType
     ReferenceError,
     SyntaxError,
     Test262Error,
-    TypeError
+    TypeError,
+    EvalError,
+    URIError
 }
