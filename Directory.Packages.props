@@ -23,6 +23,6 @@
     <PackageVersion Include="ZString" Version="2.6.0" />
   </ItemGroup>
   <ItemGroup>
-    <GlobalPackageReference Include="GitHubActionsTestLogger" Version="3.0.2" />
+    <GlobalPackageReference Include="GitHubActionsTestLogger" Version="3.0.3" />
   </ItemGroup>
 </Project>
