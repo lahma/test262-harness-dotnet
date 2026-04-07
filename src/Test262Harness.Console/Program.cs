@@ -53,7 +53,7 @@ internal sealed class GenerateCommand : AsyncCommand<GenerateCommand.Settings>
         public string SettingsFile { get; set; } = "";
     }
 
-    public override async Task<int> ExecuteAsync([NotNull] CommandContext context, [NotNull] Settings settings, CancellationToken cancellationToken)
+    protected override async Task<int> ExecuteAsync([NotNull] CommandContext context, [NotNull] Settings settings, CancellationToken cancellationToken)
     {
         TestSuiteGeneratorOptions? options = null;
         var settingsFilePath = Path.Combine(Environment.CurrentDirectory, settings.SettingsFile);
