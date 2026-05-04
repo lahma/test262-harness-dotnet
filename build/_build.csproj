@@ -15,7 +15,7 @@
 
   <ItemGroup>
     <PackageReference Include="Nuke.Components" Version="10.1.0" />
-    <PackageReference Include="YamlDotNet" Version="17.0.1" />
+    <PackageReference Include="YamlDotNet" Version="17.1.0" />
   </ItemGroup>
 
 </Project>
