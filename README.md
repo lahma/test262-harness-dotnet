@@ -174,12 +174,18 @@ List of most important things you can tweak in configuration file:
 | SuiteDirectory      | none                     | Alternatively, you can point to local repository root                                                |
 | TargetPath          | none                     | Where to generate the file to                                                                        |
 | Namespace           | Test262Harness.TestSuite | Namespace for the generated source files                                                             |
+| Parallel            | true                     | Whether to emit `[Parallelizable(ParallelScope.All)]` on the generated test base class               |
 | ExcludedFeatures    | []                       | Any [feature](https://github.com/tc39/test262/blob/main/CONTRIBUTING.md#features) you want to ignore |
 | ExcludedFlags       | []                       | Any [flag](https://github.com/tc39/test262/blob/main/CONTRIBUTING.md#flags) you want to ignore       |
 | ExcludedDirectories | []                       | Any sub-directory you would like to ignore, for example annexB                                       |
-| ExcludedFiles       | []                       | List of specific files you would like to ignore                                                      | 
+| ExcludedFiles       | []                       | List of specific files you would like to ignore                                                      |
+| NonParallelFeatures | []                       | Features whose generated test methods should receive `[NonParallelizable]`                           |
+| NonParallelFlags    | []                       | Flags whose generated test methods should receive `[NonParallelizable]`                              |
+| NonParallelFiles    | []                       | Specific files (exact path or glob) whose generated test methods should receive `[NonParallelizable]` |
 
 Exclusion maps to setting `[Ignore]` attribute in test suite.
+
+Non-parallel marking maps to setting `[NonParallelizable]` on the affected generated test method(s). Because all tests under a given sub-directory (e.g. `built-ins/Atomics/waitAsync`) collapse into one generated method, marking any one entry serialises the whole group — sufficient for timing-sensitive feature suites such as `Atomics.waitAsync`. File entries use the test262 forward-slash path format; esprima-style `(default)` / `(strict mode)` suffixes are not supported here (the attribute is method-level).
 
 
 ## Branches and releases

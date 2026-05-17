@@ -28,6 +28,9 @@ public class {{ TestClassName }} : Test262Test
     {
     }
 {%- else %}
+{%- if testCollection.NonParallelizable %}
+    [NonParallelizable]
+{%- endif %}
     public void {{ testCollection.Name }}(string test, bool strict)
     {
         RunTestCode(test, strict);

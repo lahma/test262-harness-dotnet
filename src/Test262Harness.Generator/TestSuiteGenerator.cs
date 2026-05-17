@@ -15,6 +15,10 @@ public class TestSuiteGenerator
     private readonly Dictionary<string,string> _excludedFeatures;
     private readonly Dictionary<string,string> _excludedFlags;
     private readonly Glob[] _excludedFilesGlobPatterns;
+    private readonly HashSet<string> _nonParallelFiles;
+    private readonly HashSet<string> _nonParallelFeatures;
+    private readonly HashSet<string> _nonParallelFlags;
+    private readonly Glob[] _nonParallelFilesGlobPatterns;
 
     public TestSuiteGenerator(TestSuiteGeneratorOptions options, string? usedSettingsFilePath)
     {
@@ -53,6 +57,21 @@ public class TestSuiteGenerator
 
         var globChars = new[] { '*', '[', '{', '!', '?' };
         _excludedFilesGlobPatterns = _options.ExcludedFiles
+            .Distinct()
+            .Where(x => x.IndexOfAny(globChars) != -1)
+            .Select(x => new Glob(x.ToLowerInvariant(), GlobOptions.Compiled | GlobOptions.CaseInsensitive))
+            .ToArray();
+
+        _nonParallelFiles = new HashSet<string>(
+            _options.NonParallelFiles
+                .Where(x => x.IndexOfAny(globChars) == -1)
+                .Select(x => x.Trim().ToLowerInvariant()),
+            StringComparer.OrdinalIgnoreCase);
+
+        _nonParallelFeatures = new HashSet<string>(_options.NonParallelFeatures, StringComparer.OrdinalIgnoreCase);
+        _nonParallelFlags = new HashSet<string>(_options.NonParallelFlags, StringComparer.OrdinalIgnoreCase);
+
+        _nonParallelFilesGlobPatterns = _options.NonParallelFiles
             .Distinct()
             .Where(x => x.IndexOfAny(globChars) != -1)
             .Select(x => new Glob(x.ToLowerInvariant(), GlobOptions.Compiled | GlobOptions.CaseInsensitive))
@@ -141,7 +160,8 @@ public class TestSuiteGenerator
                             .Select(file =>
                             {
                                 var excludeReason = directoryExcludeReason ?? GetExcludeReason(file);
-                                return new TestCase(file, excludeReason);
+                                var nonParallel = excludeReason is null && IsNonParallelizable(file);
+                                return new TestCase(file, excludeReason, nonParallel);
                             })
                             .OrderBy(x => x.FileName)
                             .ToList();
@@ -218,6 +238,54 @@ public class TestSuiteGenerator
         }
 
         return excludeReason;
+    }
+
+    private bool IsNonParallelizable(Test262File file)
+    {
+        if (_nonParallelFiles.Count == 0
+            && _nonParallelFeatures.Count == 0
+            && _nonParallelFlags.Count == 0
+            && _nonParallelFilesGlobPatterns.Length == 0)
+        {
+            return false;
+        }
+
+        const string TestPrefix = "test/";
+        var fileName = file.FileName.StartsWith(TestPrefix, StringComparison.OrdinalIgnoreCase)
+            ? file.FileName.Substring(TestPrefix.Length)
+            : file.FileName;
+        fileName = fileName.ToLowerInvariant();
+
+        if (_nonParallelFiles.Contains(fileName))
+        {
+            return true;
+        }
+
+        foreach (var feature in file.Features)
+        {
+            if (_nonParallelFeatures.Contains(feature))
+            {
+                return true;
+            }
+        }
+
+        foreach (var flag in file.Flags)
+        {
+            if (_nonParallelFlags.Contains(flag))
+            {
+                return true;
+            }
+        }
+
+        foreach (var pattern in _nonParallelFilesGlobPatterns)
+        {
+            if (pattern.IsMatch(fileName))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private async Task<(IFluidTemplate Template, string Hash)> GetTemplate(string name)

@@ -20,5 +20,9 @@ public class TestSuiteGeneratorOptions
     public string[] ExcludedDirectories { get; set; } = [];
     public string[] ExcludedFiles { get; set; } = [];
 
+    public string[] NonParallelFeatures { get; set; } = [];
+    public string[] NonParallelFlags { get; set; } = [];
+    public string[] NonParallelFiles { get; set; } = [];
+
     public string ExcludedFilesSource { get; set; } = "";
 }
