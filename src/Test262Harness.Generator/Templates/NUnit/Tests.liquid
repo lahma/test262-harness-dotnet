@@ -18,6 +18,9 @@ namespace {{ Namespace }};
 public class {{ TestClassName }} : Test262Test
 {
 {%- for testCollection in TestCaseGroupings -%}
+{%- if testCollection.NonParallelizable %}
+    [NonParallelizable]
+{%- endif %}
 {%- for test in testCollection.TestCases %}
     [TestCase("{{ test.FileName }}", {{ test.Strict }}{% if test.Category %}, Category = "{{ test.Category }}"{% endif %}{% if test.IgnoreReason %}, IgnoreReason = "{{ test.IgnoreReason }}"{% endif %})]
 {%- endfor %}
@@ -28,9 +31,6 @@ public class {{ TestClassName }} : Test262Test
     {
     }
 {%- else %}
-{%- if testCollection.NonParallelizable %}
-    [NonParallelizable]
-{%- endif %}
     public void {{ testCollection.Name }}(string test, bool strict)
     {
         RunTestCode(test, strict);

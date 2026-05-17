@@ -1,3 +1,5 @@
+using System.Buffers;
+using System.Collections.Frozen;
 using System.Security.Cryptography;
 using System.Text;
 using Fluid;
@@ -8,16 +10,18 @@ namespace Test262Harness.TestSuite.Generator;
 
 public class TestSuiteGenerator
 {
+    private static readonly SearchValues<char> _globChars = SearchValues.Create("*[{!?");
+
     private readonly FluidParser _parser = new();
     private readonly TestSuiteGeneratorOptions _options;
     private readonly string? _usedSettingsFilePath;
-    private readonly Dictionary<(string Name, bool Strict), string> _excludedFiles;
-    private readonly Dictionary<string,string> _excludedFeatures;
-    private readonly Dictionary<string,string> _excludedFlags;
+    private readonly FrozenDictionary<(string Name, bool Strict), string> _excludedFiles;
+    private readonly FrozenDictionary<string, string> _excludedFeatures;
+    private readonly FrozenDictionary<string, string> _excludedFlags;
     private readonly Glob[] _excludedFilesGlobPatterns;
-    private readonly HashSet<string> _nonParallelFiles;
-    private readonly HashSet<string> _nonParallelFeatures;
-    private readonly HashSet<string> _nonParallelFlags;
+    private readonly FrozenSet<string> _nonParallelFiles;
+    private readonly FrozenSet<string> _nonParallelFeatures;
+    private readonly FrozenSet<string> _nonParallelFlags;
     private readonly Glob[] _nonParallelFilesGlobPatterns;
 
     public TestSuiteGenerator(TestSuiteGeneratorOptions options, string? usedSettingsFilePath)
@@ -50,30 +54,28 @@ public class TestSuiteGenerator
                     };
                 }
             })
-            .ToDictionary(x => x, x => $"File {x.Name} excluded ({(string?) (x.Strict ? "strict mode" : "default")})");
+            .ToFrozenDictionary(x => x, x => $"File {x.Name} excluded ({(string?) (x.Strict ? "strict mode" : "default")})");
 
-        _excludedFeatures = _options.ExcludedFeatures.Distinct().ToDictionary(x => x, x => $"Feature {x} excluded", StringComparer.OrdinalIgnoreCase);
-        _excludedFlags = _options.ExcludedFlags.Distinct().ToDictionary(x => x, x => $"Flag {x} excluded", StringComparer.OrdinalIgnoreCase);
+        _excludedFeatures = _options.ExcludedFeatures.Distinct().ToFrozenDictionary(x => x, x => $"Feature {x} excluded", StringComparer.OrdinalIgnoreCase);
+        _excludedFlags = _options.ExcludedFlags.Distinct().ToFrozenDictionary(x => x, x => $"Flag {x} excluded", StringComparer.OrdinalIgnoreCase);
 
-        var globChars = new[] { '*', '[', '{', '!', '?' };
         _excludedFilesGlobPatterns = _options.ExcludedFiles
             .Distinct()
-            .Where(x => x.IndexOfAny(globChars) != -1)
+            .Where(x => x.AsSpan().IndexOfAny(_globChars) != -1)
             .Select(x => new Glob(x.ToLowerInvariant(), GlobOptions.Compiled | GlobOptions.CaseInsensitive))
             .ToArray();
 
-        _nonParallelFiles = new HashSet<string>(
-            _options.NonParallelFiles
-                .Where(x => x.IndexOfAny(globChars) == -1)
-                .Select(x => x.Trim().ToLowerInvariant()),
-            StringComparer.OrdinalIgnoreCase);
+        _nonParallelFiles = _options.NonParallelFiles
+            .Where(x => x.AsSpan().IndexOfAny(_globChars) == -1)
+            .Select(x => x.Trim().ToLowerInvariant())
+            .ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
-        _nonParallelFeatures = new HashSet<string>(_options.NonParallelFeatures, StringComparer.OrdinalIgnoreCase);
-        _nonParallelFlags = new HashSet<string>(_options.NonParallelFlags, StringComparer.OrdinalIgnoreCase);
+        _nonParallelFeatures = _options.NonParallelFeatures.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+        _nonParallelFlags = _options.NonParallelFlags.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
         _nonParallelFilesGlobPatterns = _options.NonParallelFiles
             .Distinct()
-            .Where(x => x.IndexOfAny(globChars) != -1)
+            .Where(x => x.AsSpan().IndexOfAny(_globChars) != -1)
             .Select(x => new Glob(x.ToLowerInvariant(), GlobOptions.Compiled | GlobOptions.CaseInsensitive))
             .ToArray();
     }
