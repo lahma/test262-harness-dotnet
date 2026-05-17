@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Runtime.CompilerServices;
 using Cysharp.Text;
 
@@ -5,6 +6,8 @@ namespace Test262Harness.TestSuite.Generator
 {
     public static class ConversionUtilities
     {
+        private static readonly SearchValues<char> _underscoreSeparators = SearchValues.Create(" /.");
+
         public static string ConvertToUpperCamelCase(string input)
         {
             if (string.IsNullOrEmpty(input))
@@ -12,15 +15,10 @@ namespace Test262Harness.TestSuite.Generator
                 return string.Empty;
             }
 
-            input = ConvertDashesToCamelCase(Capitalize(input)
-                .Replace(" ", "_")
-                .Replace("/", "_")
-                .Replace(".", "_"));
-
-            return input;
+            return ConvertDashesToCamelCase(ReplaceSeparatorsWithUnderscore(Capitalize(input)));
         }
 
-        [MethodImpl((MethodImplOptions) 256)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static string Capitalize(string input)
         {
             if (char.IsUpper(input[0]))
@@ -33,7 +31,26 @@ namespace Test262Harness.TestSuite.Generator
                 return char.ToUpperInvariant(input[0]).ToString();
             }
 
-            return char.ToUpperInvariant(input[0]) + input.Substring(1);
+            return string.Concat([char.ToUpperInvariant(input[0])], input.AsSpan(1));
+        }
+
+        private static string ReplaceSeparatorsWithUnderscore(string input)
+        {
+            var span = input.AsSpan();
+            if (!span.ContainsAny(_underscoreSeparators))
+            {
+                return input;
+            }
+
+            return string.Create(span.Length, input, static (dest, src) =>
+            {
+                var s = src.AsSpan();
+                for (var i = 0; i < s.Length; i++)
+                {
+                    var c = s[i];
+                    dest[i] = c is ' ' or '/' or '.' ? '_' : c;
+                }
+            });
         }
 
         private static string ConvertDashesToCamelCase(string input)
