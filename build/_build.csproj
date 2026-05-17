@@ -14,7 +14,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="NuGet.Packaging" Version="7.6.0" />
     <PackageReference Include="Nuke.Components" Version="10.1.0" />
+    <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.8" />
     <PackageReference Include="YamlDotNet" Version="17.1.0" />
   </ItemGroup>
 
