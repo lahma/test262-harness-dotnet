@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Security.Cryptography;
 using System.Text;
 using Fluid;
@@ -8,55 +9,82 @@ namespace Test262Harness.TestSuite.Generator;
 
 public class TestSuiteGenerator
 {
+    private const string TestPrefix = "test/";
+    private const string DefaultSuffix = "(default)";
+    private const string StrictSuffix = "(strict mode)";
+
+    private static readonly SearchValues<char> _globChars = SearchValues.Create("*[{!?");
+
     private readonly FluidParser _parser = new();
     private readonly TestSuiteGeneratorOptions _options;
     private readonly string? _usedSettingsFilePath;
-    private readonly Dictionary<(string Name, bool Strict), string> _excludedFiles;
-    private readonly Dictionary<string,string> _excludedFeatures;
-    private readonly Dictionary<string,string> _excludedFlags;
+    private readonly SearchValues<string> _excludedFilesBothModes;
+    private readonly SearchValues<string> _excludedFilesDefaultOnly;
+    private readonly SearchValues<string> _excludedFilesStrictOnly;
+    private readonly SearchValues<string> _excludedFeatures;
+    private readonly SearchValues<string> _excludedFlags;
     private readonly Glob[] _excludedFilesGlobPatterns;
+    private readonly SearchValues<string> _nonParallelFiles;
+    private readonly SearchValues<string> _nonParallelFeatures;
+    private readonly SearchValues<string> _nonParallelFlags;
+    private readonly Glob[] _nonParallelFilesGlobPatterns;
+    private readonly bool _anyNonParallelConfigured;
 
     public TestSuiteGenerator(TestSuiteGeneratorOptions options, string? usedSettingsFilePath)
     {
         _options = options;
         _usedSettingsFilePath = usedSettingsFilePath;
 
-        _excludedFiles =_options.ExcludedFiles
-            .Select(x => x.Trim().ToLowerInvariant())
-            .Distinct()
-            // translate esprima format
-            .SelectMany(x =>
+        var bothModes = new List<string>();
+        var defaultOnly = new List<string>();
+        var strictOnly = new List<string>();
+        foreach (var raw in _options.ExcludedFiles.Select(x => x.Trim()).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            if (raw.EndsWith(DefaultSuffix, StringComparison.Ordinal))
             {
-                if (x.EndsWith("(default)", StringComparison.Ordinal))
-                {
-                    return [(x.Substring(0, x.Length - "(default)".Length), false)];
-                }
+                defaultOnly.Add(raw[..^DefaultSuffix.Length]);
+            }
+            else if (raw.EndsWith(StrictSuffix, StringComparison.Ordinal))
+            {
+                strictOnly.Add(raw[..^StrictSuffix.Length]);
+            }
+            else
+            {
+                bothModes.Add(raw);
+            }
+        }
 
-                if (x.EndsWith("(strict mode)", StringComparison.Ordinal))
-                {
-                    return [(x.Substring(0, x.Length - "(strict mode)".Length), true)];
-                }
-                else
-                {
-                    // as-is and both
-                    return new (string Name, bool Strict)[]
-                    {
-                        (x, false),
-                        (x, true)
-                    };
-                }
-            })
-            .ToDictionary(x => x, x => $"File {x.Name} excluded ({(string?) (x.Strict ? "strict mode" : "default")})");
+        _excludedFilesBothModes = SearchValues.Create([.. bothModes], StringComparison.OrdinalIgnoreCase);
+        _excludedFilesDefaultOnly = SearchValues.Create([.. defaultOnly], StringComparison.OrdinalIgnoreCase);
+        _excludedFilesStrictOnly = SearchValues.Create([.. strictOnly], StringComparison.OrdinalIgnoreCase);
 
-        _excludedFeatures = _options.ExcludedFeatures.Distinct().ToDictionary(x => x, x => $"Feature {x} excluded", StringComparer.OrdinalIgnoreCase);
-        _excludedFlags = _options.ExcludedFlags.Distinct().ToDictionary(x => x, x => $"Flag {x} excluded", StringComparer.OrdinalIgnoreCase);
+        _excludedFeatures = SearchValues.Create([.. _options.ExcludedFeatures.Distinct(StringComparer.OrdinalIgnoreCase)], StringComparison.OrdinalIgnoreCase);
+        _excludedFlags = SearchValues.Create([.. _options.ExcludedFlags.Distinct(StringComparer.OrdinalIgnoreCase)], StringComparison.OrdinalIgnoreCase);
 
-        var globChars = new[] { '*', '[', '{', '!', '?' };
         _excludedFilesGlobPatterns = _options.ExcludedFiles
-            .Distinct()
-            .Where(x => x.IndexOfAny(globChars) != -1)
-            .Select(x => new Glob(x.ToLowerInvariant(), GlobOptions.Compiled | GlobOptions.CaseInsensitive))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(x => x.AsSpan().ContainsAny(_globChars))
+            .Select(x => new Glob(x, GlobOptions.Compiled | GlobOptions.CaseInsensitive))
             .ToArray();
+
+        _nonParallelFiles = SearchValues.Create(
+            [.. _options.NonParallelFiles
+                .Where(x => !x.AsSpan().ContainsAny(_globChars))
+                .Select(x => x.Trim())],
+            StringComparison.OrdinalIgnoreCase);
+
+        _nonParallelFeatures = SearchValues.Create([.. _options.NonParallelFeatures.Distinct(StringComparer.OrdinalIgnoreCase)], StringComparison.OrdinalIgnoreCase);
+        _nonParallelFlags = SearchValues.Create([.. _options.NonParallelFlags.Distinct(StringComparer.OrdinalIgnoreCase)], StringComparison.OrdinalIgnoreCase);
+
+        _nonParallelFilesGlobPatterns = _options.NonParallelFiles
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(x => x.AsSpan().ContainsAny(_globChars))
+            .Select(x => new Glob(x, GlobOptions.Compiled | GlobOptions.CaseInsensitive))
+            .ToArray();
+
+        _anyNonParallelConfigured = _options.NonParallelFiles.Length > 0
+                                    || _options.NonParallelFeatures.Length > 0
+                                    || _options.NonParallelFlags.Length > 0;
     }
 
     public async Task<(int TotalTestCaseCount, int IgnoreCount)> Generate(Test262Stream stream)
@@ -141,7 +169,8 @@ public class TestSuiteGenerator
                             .Select(file =>
                             {
                                 var excludeReason = directoryExcludeReason ?? GetExcludeReason(file);
-                                return new TestCase(file, excludeReason);
+                                var nonParallel = excludeReason is null && IsNonParallelizable(file);
+                                return new TestCase(file, excludeReason, nonParallel);
                             })
                             .OrderBy(x => x.FileName)
                             .ToList();
@@ -176,48 +205,91 @@ public class TestSuiteGenerator
         context.SetValue("TemplateSha", templateHash);
     }
 
+    private static string StripTestPrefix(string fileName)
+    {
+        return fileName.StartsWith(TestPrefix, StringComparison.OrdinalIgnoreCase)
+            ? fileName[TestPrefix.Length..]
+            : fileName;
+    }
+
     private string? GetExcludeReason(Test262File file)
     {
-        const string TestPrefix = "test/";
-        var fileName = file.FileName.StartsWith(TestPrefix, StringComparison.OrdinalIgnoreCase) ? file.FileName.Substring(TestPrefix.Length) : file.FileName;
-        fileName = fileName.ToLowerInvariant();
+        var fileName = StripTestPrefix(file.FileName);
 
-        _excludedFiles.TryGetValue((fileName, file.Strict), out var excludeReason);
-
-        if (excludeReason is null)
+        if (_excludedFilesBothModes.Contains(fileName)
+            || (file.Strict
+                ? _excludedFilesStrictOnly.Contains(fileName)
+                : _excludedFilesDefaultOnly.Contains(fileName)))
         {
-            foreach (var feature in file.Features)
+            return $"File {fileName.ToLowerInvariant()} excluded ({(file.Strict ? "strict mode" : "default")})";
+        }
+
+        foreach (var feature in file.Features)
+        {
+            if (_excludedFeatures.Contains(feature))
             {
-                if (_excludedFeatures.TryGetValue(feature, out excludeReason))
-                {
-                    break;
-                }
+                return $"Feature {feature} excluded";
             }
         }
 
-        if (excludeReason is null)
+        foreach (var flag in file.Flags)
         {
-            foreach (var flag in file.Flags)
+            if (_excludedFlags.Contains(flag))
             {
-                if (_excludedFlags.TryGetValue(flag, out excludeReason))
-                {
-                    break;
-                }
+                return $"Flag {flag} excluded";
             }
         }
 
-        if (excludeReason is null)
+        foreach (var pattern in _excludedFilesGlobPatterns)
         {
-            foreach (var pattern in _excludedFilesGlobPatterns)
+            if (pattern.IsMatch(fileName))
             {
-                if (pattern.IsMatch(fileName))
-                {
-                    return $"File {fileName} excluded (glob pattern)";
-                }
+                return $"File {fileName.ToLowerInvariant()} excluded (glob pattern)";
             }
         }
 
-        return excludeReason;
+        return null;
+    }
+
+    private bool IsNonParallelizable(Test262File file)
+    {
+        if (!_anyNonParallelConfigured)
+        {
+            return false;
+        }
+
+        var fileName = StripTestPrefix(file.FileName);
+
+        if (_nonParallelFiles.Contains(fileName))
+        {
+            return true;
+        }
+
+        foreach (var feature in file.Features)
+        {
+            if (_nonParallelFeatures.Contains(feature))
+            {
+                return true;
+            }
+        }
+
+        foreach (var flag in file.Flags)
+        {
+            if (_nonParallelFlags.Contains(flag))
+            {
+                return true;
+            }
+        }
+
+        foreach (var pattern in _nonParallelFilesGlobPatterns)
+        {
+            if (pattern.IsMatch(fileName))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private async Task<(IFluidTemplate Template, string Hash)> GetTemplate(string name)

@@ -37,11 +37,13 @@ public class TestCaseGroup
     public List<TestCase> TestCases { get; }
     public int IgnoreCount { get; }
     public string? IgnoreReason { get; }
+
+    public bool NonParallelizable => TestCases.Any(tc => tc.NonParallelizable);
 }
 
 public class TestCase
 {
-    public TestCase(Test262File file, string? ignoreReason)
+    public TestCase(Test262File file, string? ignoreReason, bool nonParallelizable = false)
     {
         FileName = file.FileName.StartsWith("test/", StringComparison.OrdinalIgnoreCase) ? file.FileName[5..] : file.FileName;
         Category = file.Features.Length > 0 || file.Flags.Length > 0
@@ -49,10 +51,12 @@ public class TestCase
             : null;
         IgnoreReason = ignoreReason;
         Strict = file.Strict;
+        NonParallelizable = nonParallelizable;
     }
 
     public string FileName { get; set; }
     public string? Category { get; set; }
     public string? IgnoreReason { get; set; }
     public bool Strict { get; set; }
+    public bool NonParallelizable { get; set; }
 }
