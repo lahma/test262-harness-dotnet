@@ -12,13 +12,13 @@
     <PackageVersion Include="JavaScriptEngineSwitcher.Jurassic" Version="3.31.0" />
     <PackageVersion Include="JavaScriptEngineSwitcher.NiL" Version="3.34.1" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.5.1" />
-    <PackageVersion Include="NUnit" Version="4.6.0" />
+    <PackageVersion Include="NUnit" Version="4.6.1" />
     <PackageVersion Include="NUnit.Analyzers" Version="4.13.0" />
     <PackageVersion Include="NUnit3TestAdapter" Version="6.2.0" />
     <PackageVersion Include="SharpZipLib" Version="1.4.2" />
     <PackageVersion Include="Spectre.Console.Cli" Version="0.55.0" />
     <PackageVersion Include="System.Memory" Version="4.6.0" />
-    <PackageVersion Include="Verify.NUnit" Version="31.16.3" />
+    <PackageVersion Include="Verify.NUnit" Version="31.17.0" />
     <PackageVersion Include="YamlDotNet" Version="18.0.0" />
     <PackageVersion Include="Zio" Version="0.22.2" />
     <PackageVersion Include="ZString" Version="2.6.0" />
