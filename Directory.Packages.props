@@ -20,7 +20,7 @@
     <PackageVersion Include="System.Memory" Version="4.6.0" />
     <PackageVersion Include="Verify.NUnit" Version="31.19.1" />
     <PackageVersion Include="YamlDotNet" Version="18.0.0" />
-    <PackageVersion Include="Zio" Version="0.23.0" />
+    <PackageVersion Include="Zio" Version="0.24.0" />
     <PackageVersion Include="ZString" Version="2.6.0" />
   </ItemGroup>
   <ItemGroup>
