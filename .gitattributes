@@ -25,3 +25,8 @@
 *.sh      eol=lf
 *.conf    eol=lf
 dotnet-test-nunit eol=lf
+
+# Verify snapshot files must keep LF line endings; Verify.NUnit >= 31.21.0
+# rejects CR in these files instead of normalizing it.
+*.verified.* eol=lf
+*.received.* eol=lf
