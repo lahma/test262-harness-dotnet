@@ -45,13 +45,78 @@ class CustomGitHubActionsAttribute : GitHubActionsAttribute
     {
         var job = base.GetJobs(image, relevantTargets);
 
-        var newSteps = new List<GitHubActionsStep>(job.Steps);
+        // Nuke pins the checkout / upload-artifact action versions to its own release. Swap them for
+        // version-pinned custom steps so the generated workflows track the latest action majors
+        // independently of the Nuke version we happen to build with.
+        var newSteps = new List<GitHubActionsStep>();
+        foreach (var step in job.Steps)
+        {
+            newSteps.Add(step switch
+            {
+                GitHubActionsCheckoutStep => new PinnedUsesStep("actions/checkout@v7"),
+                GitHubActionsArtifactStep artifact => new PinnedUploadArtifactStep(artifact.Name, artifact.Path, artifact.Condition),
+                _ => step,
+            });
+        }
 
         // only need to list the ones that are missing from default image
         newSteps.Insert(0, new GitHubActionsSetupDotNetStep(["10.0"]));
 
         job.Steps = newSteps.ToArray();
         return job;
+    }
+}
+
+/// <summary>Emits a bare <c>- uses: &lt;action&gt;</c> step, letting us pin an action version Nuke would otherwise hard-code.</summary>
+class PinnedUsesStep : GitHubActionsStep
+{
+    public PinnedUsesStep(string uses)
+    {
+        Uses = uses;
+    }
+
+    string Uses { get; }
+
+    public override void Write(CustomFileWriter writer)
+    {
+        writer.WriteLine($"- uses: {Uses}");
+    }
+}
+
+/// <summary>Reproduces Nuke's upload-artifact step (name / condition / path) but on a pinned action version.</summary>
+class PinnedUploadArtifactStep : GitHubActionsStep
+{
+    public PinnedUploadArtifactStep(string name, string path, string? condition)
+    {
+        Name = name;
+        Path = path;
+        Condition = condition;
+    }
+
+    string Name { get; }
+    string Path { get; }
+    string? Condition { get; }
+
+    public override void Write(CustomFileWriter writer)
+    {
+        writer.WriteLine($"- name: 'Publish: {Name}'");
+
+        using (writer.Indent())
+        {
+            writer.WriteLine("uses: actions/upload-artifact@v7");
+
+            if (!string.IsNullOrWhiteSpace(Condition))
+            {
+                writer.WriteLine($"if: {Condition}");
+            }
+
+            writer.WriteLine("with:");
+            using (writer.Indent())
+            {
+                writer.WriteLine($"name: {Name}");
+                writer.WriteLine($"path: {Path}");
+            }
+        }
     }
 }
 
