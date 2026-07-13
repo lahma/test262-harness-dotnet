@@ -187,6 +187,20 @@ Exclusion maps to setting `[Ignore]` attribute in test suite.
 
 Non-parallel marking maps to setting `[NonParallelizable]` on the affected generated test method(s). Because all tests under a given sub-directory (e.g. `built-ins/Atomics/waitAsync`) collapse into one generated method, marking any one entry serialises the whole group — sufficient for timing-sensitive feature suites such as `Atomics.waitAsync`. File entries use the test262 forward-slash path format; esprima-style `(default)` / `(strict mode)` suffixes are not supported here (the attribute is method-level).
 
+## Sharding the generated suite
+
+`generate` accepts two command-line options for splitting the suite into independent slices so a CI matrix can compile and run them on separate runners in parallel:
+
+| Option           | Default | Description                                                     |
+|:-----------------|:--------|:----------------------------------------------------------------|
+| `--shard-count`  | 1       | Total number of shards to split the suite into (1 = no sharding) |
+| `--shard-index`  | 0       | Zero-based index of the shard to emit, in range `[0, shard-count)` |
+
+```
+dotnet test262 generate --shard-count 4 --shard-index 0
+```
+
+Each test file is assigned to a shard by a stable, order-independent hash of its name, so the assignment is deterministic across runs, machines and operating systems: shard *k* always contains the same files, the shards never overlap, and their union is exactly the full (unsharded) suite. Both strict and non-strict variants of a file always land in the same shard. Because the assignment does not depend on where generation runs, a shard generated on one operating system can be reused (e.g. from a cross-OS cache) by test jobs on any other.
 
 ## Branches and releases
 

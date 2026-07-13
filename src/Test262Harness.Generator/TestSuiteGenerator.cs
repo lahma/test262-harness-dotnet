@@ -32,6 +32,16 @@ public class TestSuiteGenerator
 
     public TestSuiteGenerator(TestSuiteGeneratorOptions options, string? usedSettingsFilePath)
     {
+        if (options.ShardCount < 1)
+        {
+            throw new ArgumentException($"ShardCount must be >= 1 but was {options.ShardCount}.", nameof(options));
+        }
+
+        if (options.ShardIndex < 0 || options.ShardIndex >= options.ShardCount)
+        {
+            throw new ArgumentException($"ShardIndex must be in the range [0, {options.ShardCount}) but was {options.ShardIndex}.", nameof(options));
+        }
+
         _options = options;
         _usedSettingsFilePath = usedSettingsFilePath;
 
@@ -115,6 +125,11 @@ public class TestSuiteGenerator
         foreach (var item in stream.Options.SubDirectories)
         {
             var tests = stream.GetTestFiles([item]).ToList();
+
+            if (_options.ShardCount > 1)
+            {
+                tests = tests.Where(x => GetShardIndex(x.FileName) == _options.ShardIndex).ToList();
+            }
 
             if (tests.Count == 0)
             {
@@ -203,6 +218,32 @@ public class TestSuiteGenerator
         context.SetValue("SuiteGitSha", _options.SuiteGitSha);
         context.SetValue("SuiteDirectory", _options.SuiteDirectory);
         context.SetValue("TemplateSha", templateHash);
+    }
+
+    private int GetShardIndex(string fileName)
+    {
+        return (int) (StableHash(fileName) % (uint) _options.ShardCount);
+    }
+
+    /// <summary>
+    /// A small, deterministic hash (FNV-1a, 32-bit) used to assign a test file to a shard.
+    /// Unlike <see cref="string.GetHashCode()"/> — which is randomized per process on modern .NET —
+    /// this produces identical results across runs, machines and operating systems, so a given file
+    /// always lands in the same shard regardless of where generation happens.
+    /// </summary>
+    private static uint StableHash(string value)
+    {
+        const uint offsetBasis = 2166136261;
+        const uint prime = 16777619;
+
+        var hash = offsetBasis;
+        foreach (var c in value)
+        {
+            hash = (hash ^ (byte) c) * prime;
+            hash = (hash ^ (byte) (c >> 8)) * prime;
+        }
+
+        return hash;
     }
 
     private static string StripTestPrefix(string fileName)
