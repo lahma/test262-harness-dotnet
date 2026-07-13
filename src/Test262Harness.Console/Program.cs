@@ -51,6 +51,14 @@ internal sealed class GenerateCommand : AsyncCommand<GenerateCommand.Settings>
         [CommandOption("-s|--settings")]
         [DefaultValue("Test262Harness.settings.json")]
         public string SettingsFile { get; set; } = "";
+
+        [Description("Total number of shards to split the suite into (default 1 = no sharding)")]
+        [CommandOption("--shard-count")]
+        public int? ShardCount { get; set; }
+
+        [Description("Zero-based index of the shard to emit, in range [0, shard-count)")]
+        [CommandOption("--shard-index")]
+        public int? ShardIndex { get; set; }
     }
 
     protected override async Task<int> ExecuteAsync([NotNull] CommandContext context, [NotNull] Settings settings, CancellationToken cancellationToken)
@@ -150,6 +158,16 @@ internal sealed class GenerateCommand : AsyncCommand<GenerateCommand.Settings>
         if (!string.IsNullOrWhiteSpace(settings.ExcludedFilesSource))
         {
             options.ExcludedFilesSource = settings.ExcludedFilesSource;
+        }
+
+        if (settings.ShardCount is not null)
+        {
+            options.ShardCount = settings.ShardCount.Value;
+        }
+
+        if (settings.ShardIndex is not null)
+        {
+            options.ShardIndex = settings.ShardIndex.Value;
         }
 
         if (!string.IsNullOrWhiteSpace(options.ExcludedFilesSource))
