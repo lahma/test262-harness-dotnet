@@ -9,7 +9,7 @@
 #
 #     - To trigger manual generation invoke:
 #
-#         nuke --generate-configuration GitHubActions_build --host GitHubActions
+#         fallout --generate-configuration GitHubActions_build --host GitHubActions
 #
 # </auto-generated>
 # ------------------------------------------------------------------------------
@@ -32,13 +32,15 @@ jobs:
     name: windows-latest
     runs-on: windows-latest
     steps:
-      - uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: |
-            10.0
       - uses: actions/checkout@v7
+      - name: 'Setup: .NET SDK'
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: 'Restore: dotnet tools'
+        run: dotnet tool restore
       - name: 'Run: Compile, Test, Pack, Publish'
-        run: ./build.cmd Compile Test Pack Publish
+        run: dotnet fallout Compile Test Pack Publish
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
           MYGET_API_KEY: ${{ secrets.MYGET_API_KEY }}
@@ -58,13 +60,15 @@ jobs:
     name: ubuntu-latest
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: |
-            10.0
       - uses: actions/checkout@v7
+      - name: 'Setup: .NET SDK'
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: 'Restore: dotnet tools'
+        run: dotnet tool restore
       - name: 'Run: Compile, Test, Pack, Publish'
-        run: ./build.cmd Compile Test Pack Publish
+        run: dotnet fallout Compile Test Pack Publish
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
           MYGET_API_KEY: ${{ secrets.MYGET_API_KEY }}

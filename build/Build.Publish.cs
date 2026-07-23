@@ -1,9 +1,9 @@
-using Nuke.Common;
-using Nuke.Common.Git;
-using Nuke.Common.Tooling;
-using Nuke.Common.Tools.DotNet;
-using Nuke.Components;
-using static Nuke.Common.Tools.DotNet.DotNetTasks;
+using Fallout.Common;
+using Fallout.Common.Git;
+using Fallout.Common.Tooling;
+using Fallout.Common.Tools.DotNet;
+using Fallout.Components;
+using static Fallout.Common.Tools.DotNet.DotNetTasks;
 
 public partial class Build
 {

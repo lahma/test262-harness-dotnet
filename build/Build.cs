@@ -3,24 +3,19 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Xml.Linq;
-using Nuke.Common;
-using Nuke.Common.CI;
-using Nuke.Common.Git;
-using Nuke.Common.IO;
-using Nuke.Common.ProjectModel;
-using Nuke.Common.Tooling;
-using Nuke.Common.Tools.DotNet;
-using Nuke.Common.Utilities.Collections;
-using Nuke.Components;
+using Fallout.Common;
+using Fallout.Common.CI;
+using Fallout.Common.Git;
+using Fallout.Common.IO;
+using Fallout.Common.Tooling;
+using Fallout.Common.Tools.DotNet;
+using Fallout.Common.Utilities.Collections;
+using Fallout.Components;
+using Fallout.Solutions;
 
 [ShutdownDotNetAfterServerBuild]
-partial class Build : NukeBuild, ITest, IPack, IPublish
+partial class Build : FalloutBuild, ITest, IPack, IPublish
 {
-    /// Support plugins are available for:
-    ///   - JetBrains ReSharper        https://nuke.build/resharper
-    ///   - JetBrains Rider            https://nuke.build/rider
-    ///   - Microsoft VisualStudio     https://nuke.build/visualstudio
-    ///   - Microsoft VSCode           https://nuke.build/vscode
     public static int Main() => Execute<Build>(x => ((ICompile) x).Compile);
 
     [GitRepository] readonly GitRepository GitRepository;
