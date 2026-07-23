@@ -32,3 +32,5 @@ project.lock.json
 BenchmarkDotNet.Artifacts*
 node_modules
 temp
+
+.fallout/temp/

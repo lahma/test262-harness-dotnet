@@ -1,9 +1,9 @@
 using System.Collections.Generic;
-using Nuke.Common.CI.GitHubActions;
-using Nuke.Common.CI.GitHubActions.Configuration;
-using Nuke.Common.Execution;
-using Nuke.Common.Utilities;
-using Nuke.Components;
+using Fallout.Common.CI.GitHubActions;
+using Fallout.Common.CI.GitHubActions.Configuration;
+using Fallout.Common.Execution;
+using Fallout.Common.Utilities;
+using Fallout.Components;
 
 [CustomGitHubActions(
     "pr",
@@ -45,9 +45,11 @@ class CustomGitHubActionsAttribute : GitHubActionsAttribute
     {
         var job = base.GetJobs(image, relevantTargets);
 
-        // Nuke pins the checkout / upload-artifact action versions to its own release. Swap them for
-        // version-pinned custom steps so the generated workflows track the latest action majors
-        // independently of the Nuke version we happen to build with.
+        // Fallout pins the checkout / upload-artifact action versions to its own release
+        // (checkout@v6, upload-artifact@v5). Swap them for version-pinned custom steps so the
+        // generated workflows track the latest action majors independently of the Fallout version
+        // we happen to build with. setup-dotnet needs no override: Fallout's run step emits it,
+        // driven by global.json.
         var newSteps = new List<GitHubActionsStep>();
         foreach (var step in job.Steps)
         {
@@ -58,9 +60,6 @@ class CustomGitHubActionsAttribute : GitHubActionsAttribute
                 _ => step,
             });
         }
-
-        // only need to list the ones that are missing from default image
-        newSteps.Insert(0, new GitHubActionsSetupDotNetStep(["10.0"]));
 
         job.Steps = newSteps.ToArray();
         return job;
@@ -115,37 +114,6 @@ class PinnedUploadArtifactStep : GitHubActionsStep
             {
                 writer.WriteLine($"name: {Name}");
                 writer.WriteLine($"path: {Path}");
-            }
-        }
-    }
-}
-
-class GitHubActionsSetupDotNetStep : GitHubActionsStep
-{
-    public GitHubActionsSetupDotNetStep(string[] versions)
-    {
-        Versions = versions;
-    }
-
-    string[] Versions { get; }
-
-    public override void Write(CustomFileWriter writer)
-    {
-        writer.WriteLine("- uses: actions/setup-dotnet@v5");
-
-        using (writer.Indent())
-        {
-            writer.WriteLine("with:");
-            using (writer.Indent())
-            {
-                writer.WriteLine("dotnet-version: |");
-                using (writer.Indent())
-                {
-                    foreach (var version in Versions)
-                    {
-                        writer.WriteLine(version);
-                    }
-                }
             }
         }
     }
