@@ -30,31 +30,35 @@ partial class Build : FalloutBuild, ITest, IPack, IPublish
     string VersionPrefix;
     string VersionSuffix;
 
-    string DetermineVersionPrefix()
+    string FullVersion => string.IsNullOrWhiteSpace(VersionSuffix) ? VersionPrefix : $"{VersionPrefix}-{VersionSuffix}";
+
+    void DetermineVersion()
     {
-        var versionPrefix = GitRepository.Tags.SingleOrDefault(x => x.StartsWith('v'))?[1..];
-        if (!string.IsNullOrWhiteSpace(versionPrefix))
+        var tagVersion = GitRepository.Tags.SingleOrDefault(x => x.StartsWith('v'))?[1..];
+        if (!string.IsNullOrWhiteSpace(tagVersion))
         {
             IsTaggedBuild = true;
-            Serilog.Log.Information($"Tag version {VersionPrefix} from Git found, using it as version prefix", versionPrefix);
-        }
-        else
-        {
-            var propsDocument = XDocument.Parse((RootDirectory / "Directory.Build.props").ReadAllText());
-            versionPrefix = propsDocument.Element("Project").Element("PropertyGroup").Element("VersionPrefix").Value;
-            Serilog.Log.Information("Version prefix {VersionPrefix} read from Directory.Build.props", versionPrefix);
+
+            // A prerelease tag (v1.2.0-rc.1) has to be split — AssemblyVersion only accepts the numeric part.
+            var separator = tagVersion.IndexOf('-');
+            VersionPrefix = separator < 0 ? tagVersion : tagVersion[..separator];
+            VersionSuffix = separator < 0 ? null : tagVersion[(separator + 1)..];
+
+            Serilog.Log.Information("Version {FullVersion} taken from Git tag v{TagVersion}", FullVersion, tagVersion);
+            return;
         }
 
-        return versionPrefix;
+        // Untagged: <VersionPrefix> in Directory.Build.props is the placeholder preview builds carry.
+        var propsDocument = XDocument.Parse((RootDirectory / "Directory.Build.props").ReadAllText());
+        VersionPrefix = propsDocument.Element("Project").Element("PropertyGroup").Element("VersionPrefix").Value;
+        VersionSuffix = $"preview-{DateTime.UtcNow:yyyyMMdd-HHmm}";
+
+        Serilog.Log.Information("Version prefix {VersionPrefix} read from Directory.Build.props", VersionPrefix);
     }
 
     protected override void OnBuildInitialized()
     {
-        VersionPrefix = DetermineVersionPrefix();
-
-        VersionSuffix = !IsTaggedBuild
-            ? $"preview-{DateTime.UtcNow:yyyyMMdd-HHmm}"
-            : "";
+        DetermineVersion();
 
         if (IsLocalBuild)
         {
@@ -63,8 +67,7 @@ partial class Build : FalloutBuild, ITest, IPack, IPublish
 
         Serilog.Log.Information("BUILD SETUP");
         Serilog.Log.Information("Configuration:\t{Configuration}", ((ICompile) this).Configuration);
-        Serilog.Log.Information("Version prefix:\t{VersionPrefix}", VersionPrefix);
-        Serilog.Log.Information("Version suffix:\t{VersionSuffix}", VersionSuffix);
+        Serilog.Log.Information("Version:\t{FullVersion}", FullVersion);
         Serilog.Log.Information("Tagged build:\t{IsTaggedBuild}", IsTaggedBuild);
     }
 
@@ -79,11 +82,14 @@ partial class Build : FalloutBuild, ITest, IPack, IPublish
     public Configure<DotNetBuildSettings> CompileSettings => _ => _
         .SetAssemblyVersion(VersionPrefix)
         .SetFileVersion(VersionPrefix)
-        .SetInformationalVersion(VersionPrefix);
+        .SetVersionPrefix(VersionPrefix)
+        .SetVersionSuffix(VersionSuffix);
 
     public IEnumerable<Project> TestProjects => ((ICompile) this).Solution.AllProjects.Where(x => x.Name.EndsWith("Tests"));
 
     public Configure<DotNetPackSettings> PackSettings => _ => _
+        .SetAssemblyVersion(VersionPrefix)
+        .SetFileVersion(VersionPrefix)
         .SetVersionPrefix(VersionPrefix)
         .SetVersionSuffix(VersionSuffix);
 }
