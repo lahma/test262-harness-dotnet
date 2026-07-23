@@ -52,6 +52,9 @@ public partial class Build
         var requestToken = Assert.NotNullOrWhiteSpace(Environment.GetEnvironmentVariable("ACTIONS_ID_TOKEN_REQUEST_TOKEN"), missingOidc);
 
         using var client = new HttpClient();
+        // nuget.org's token endpoint returns HTTP 400 for a request with no User-Agent, and HttpClient
+        // sends none by default. Any non-empty value satisfies it.
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("test262harness-build/1.0");
 
         var idToken = client
             .CreateRequest(HttpMethod.Get, $"{requestUrl}&audience={Uri.EscapeDataString(NuGetAudience)}")
@@ -67,8 +70,8 @@ public partial class Build
             .GetResponse()
             .AssertResponse(x => x.IsSuccessStatusCode
                 ? null
-                : $"nuget.org token exchange failed ({(int) x.StatusCode}). Check that a trusted publishing policy "
-                + $"exists for this repository and workflow file, and that '{NuGetUser}' created it.")
+                : $"nuget.org token exchange failed ({(int) x.StatusCode}): {x.Content.ReadAsStringAsync().GetAwaiter().GetResult()}. "
+                + $"Check that a trusted publishing policy exists for this repository and workflow file, and that '{NuGetUser}' created it.")
             .GetBodyAsJsonObject().GetAwaiter().GetResult();
 
         // The action reads 'apiKey', the original design document says 'api_key' — accept either.
