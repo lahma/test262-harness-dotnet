@@ -9,3 +9,8 @@ updates:
     directory: "/" # Location of package manifests
     schedule:
       interval: "weekly"
+    ignore:
+      # 11.0.x is the retired pre-community Fallout line; the community releases resumed at
+      # 10.4.0 from the 10.x numbering, so 10.4.0+ is newer code despite the lower number.
+      - dependency-name: "Fallout.*"
+        versions: ["11.0.*"]
