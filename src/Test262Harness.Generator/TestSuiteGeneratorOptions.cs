@@ -15,6 +15,13 @@ public class TestSuiteGeneratorOptions
     public string Namespace { get; set; } = "Test262Harness.TestSuite";
     public bool Parallel { get; set; } = true;
 
+    /// <summary>
+    /// Sub-directories of test262's <c>test/</c> directory to generate test cases from. Defaults to
+    /// <see cref="Test262StreamOptions.DefaultSubDirectories"/>, so leaving this unset generates exactly what it
+    /// always did; add <c>"staging"</c> to also import the staged tests.
+    /// </summary>
+    public string[] SubDirectories { get; set; } = Test262StreamOptions.DefaultSubDirectories;
+
     public string[] ExcludedFeatures { get; set; } = [];
     public string[] ExcludedFlags { get; set; } = [];
     public string[] ExcludedDirectories { get; set; } = [];
