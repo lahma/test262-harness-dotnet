@@ -14,9 +14,16 @@ public sealed class Test262StreamOptions
     public IFileSystem FileSystem { get; set; }
 
     /// <summary>
-    /// Subdirectories to search. Defaults to: "annexB", "built-ins", "intl402", "language"
+    /// The sub-directories of test262's <c>test/</c> directory that are searched unless
+    /// <see cref="SubDirectories"/> says otherwise. Deliberately excludes <c>staging</c>, whose contents are
+    /// not part of the stable suite. Returns a fresh array on every call, so a caller may mutate what it gets.
     /// </summary>
-    public string[] SubDirectories { get; set; } = ["annexB", "built-ins", "intl402", "language"];
+    public static string[] DefaultSubDirectories => ["annexB", "built-ins", "intl402", "language"];
+
+    /// <summary>
+    /// Subdirectories to search. Defaults to <see cref="DefaultSubDirectories"/>.
+    /// </summary>
+    public string[] SubDirectories { get; set; } = DefaultSubDirectories;
 
     /// <summary>
     /// Possibility to filter files before they are going to be parsed.

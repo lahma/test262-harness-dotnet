@@ -175,6 +175,7 @@ List of most important things you can tweak in configuration file:
 | TargetPath          | none                     | Where to generate the file to                                                                        |
 | Namespace           | Test262Harness.TestSuite | Namespace for the generated source files                                                             |
 | Parallel            | true                     | Whether to emit `[Parallelizable(ParallelScope.All)]` on the generated test base class               |
+| SubDirectories      | `["annexB", "built-ins", "intl402", "language"]` | Sub-directories of test262's `test/` directory to generate from; add `"staging"` to also import the staged tests |
 | ExcludedFeatures    | []                       | Any [feature](https://github.com/tc39/test262/blob/main/CONTRIBUTING.md#features) you want to ignore |
 | ExcludedFlags       | []                       | Any [flag](https://github.com/tc39/test262/blob/main/CONTRIBUTING.md#flags) you want to ignore       |
 | ExcludedDirectories | []                       | Any sub-directory you would like to ignore, for example annexB                                       |

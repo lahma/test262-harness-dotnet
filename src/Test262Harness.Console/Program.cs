@@ -84,8 +84,12 @@ internal sealed class GenerateCommand : AsyncCommand<GenerateCommand.Settings>
 
         await FinalizeOptions(settings, options);
 
+        var subDirectories = options.SubDirectories;
+
         Action<Test262StreamOptions> configureOptions = options =>
         {
+            options.SubDirectories = subDirectories;
+
             options.LogInfo = (s, objects) =>
             {
                 s = s.Replace("{0}", "[yellow]{0}[/]").Replace("{1}", "[yellow]{1}[/]");

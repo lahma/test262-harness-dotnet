@@ -143,6 +143,62 @@ public class TestSuiteGeneratorTests
     }
 
     [Test]
+    public void SubDirectoriesDefaultMatchesStreamDefault()
+    {
+        // The settings-file option and the stream option have to start from the same set, or adding the setting
+        // would silently change what every existing configuration generates.
+        new TestSuiteGeneratorOptions().SubDirectories.Should().Equal(Test262StreamOptions.DefaultSubDirectories);
+        new TestSuiteGeneratorOptions().SubDirectories.Should().NotContain("staging");
+    }
+
+    [Test]
+    public async Task OnlyConfiguredSubDirectoriesAreGenerated()
+    {
+        (await GenerateSubDirectoryFileNames(["built-ins"])).Should().BeEquivalentTo("built-ins");
+        (await GenerateSubDirectoryFileNames(["built-ins", "staging"])).Should().BeEquivalentTo("built-ins", "staging");
+    }
+
+    private static async Task<string[]> GenerateSubDirectoryFileNames(string[] subDirectories)
+    {
+        var fs = CreateFixture();
+        fs.CreateDirectory("/test/staging/sm/Proxy");
+        fs.WriteAllText("/test/staging/sm/Proxy/global-receiver.js",
+            "/*---\ndescription: staged proxy test\n---*/\n// body\n");
+
+        var stream = Test262Stream.FromFileSystem(fs, opts =>
+        {
+            opts.SubDirectories = subDirectories;
+            opts.GenerateInverseStrictTestCase = false;
+            opts.LogInfo = (_, _) => { };
+            opts.LogError = (_, _) => { };
+        });
+
+        var targetPath = Path.Combine(Path.GetTempPath(), "Test262HarnessGeneratorTests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(targetPath);
+
+        try
+        {
+            var options = new TestSuiteGeneratorOptions
+            {
+                TargetPath = targetPath,
+                Namespace = "Generated.Tests",
+                SuiteGitSha = "stable-sha-for-snapshot",
+            };
+
+            var generator = new TestSuiteGenerator(options, usedSettingsFilePath: "stable-settings-path");
+            await generator.Generate(stream);
+
+            return Directory.GetFiles(targetPath, "Tests262Harness.Tests.*.generated.cs")
+                .Select(x => Path.GetFileName(x)["Tests262Harness.Tests.".Length..^".generated.cs".Length])
+                .ToArray();
+        }
+        finally
+        {
+            Directory.Delete(targetPath, recursive: true);
+        }
+    }
+
+    [Test]
     public async Task ShardingPartitionsSuiteWithoutOverlapOrLoss()
     {
         const int fileCount = 40;
