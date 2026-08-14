@@ -15,6 +15,21 @@
 
   <ItemGroup>
     <PackageReference Include="Fallout.Components" Version="10.4.0" />
+
+    <!--
+      Fallout evaluates project files in-process (ITest asks each test project whether it references
+      GitHubActionsTestLogger), which runs the installed SDK's own targets inside this process. Those
+      targets bind NuGet.Frameworks by strong name, and .NET SDK 10.0.400 wants 7.9.0.0 where
+      Fallout.Components resolves 6.14.3 transitively through NuGet.Packaging. App-local assemblies
+      win over the resolver MSBuildLocator installs, so the older one shadows the SDK's copy and
+      [MSBuild]::GetTargetFrameworkIdentifier(net10.0) throws InvalidProjectFileException — a build
+      that compiles and packs fine but cannot run a single test.
+
+      Pinning forward is safe in both directions: the runtime binds a higher assembly version than the
+      one requested, so an SDK still asking for 6.14.3 is satisfied too. Remove once Fallout ships a
+      NuGet.Packaging new enough to bring 7.9.0 in on its own.
+    -->
+    <PackageReference Include="NuGet.Frameworks" Version="7.9.0" />
   </ItemGroup>
 
 </Project>
