@@ -1,3 +1,4 @@
+using Zio;
 using System.IO.Compression;
 using System.Text;
 
@@ -126,6 +127,23 @@ public class ZipArchiveFileSystemTests
 
         file.Strict.Should().BeFalse();
         file.Program.Should().Be(sloppyProgram);
+    }
+
+    /// <summary>
+    /// A consumer reading through Zio's IFileSystem.OpenFile(path, mode, access) overload gets
+    /// FileShare.None, while Test262Stream.GetTestFile asks for FileShare.Read. Both reach for the
+    /// same file, so neither may take a lock the other is refused.
+    /// </summary>
+    [Test]
+    public void AllowsConcurrentReadsAskingForDifferentShareModes()
+    {
+        var stream = CreateStream();
+        var fileSystem = stream.Options.FileSystem;
+
+        using var held = fileSystem.OpenFile("/test/language/sample-2.js", FileMode.Open, FileAccess.Read);
+
+        Assert.DoesNotThrow(() => stream.GetTestFile("language/sample-2.js"));
+        Assert.DoesNotThrow(() => fileSystem.OpenFile("/test/language/sample-2.js", FileMode.Open, FileAccess.Read).Dispose());
     }
 
     /// <summary>
