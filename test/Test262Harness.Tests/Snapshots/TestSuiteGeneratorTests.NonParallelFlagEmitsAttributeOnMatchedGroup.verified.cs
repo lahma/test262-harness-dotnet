@@ -6,7 +6,7 @@ namespace Generated.Tests;
 
 public class BuiltInsTests : Test262Test
 {
-    [NonParallelizable]
+    [Parallelizable(ParallelScope.None | ParallelScope.Children)]
     [TestCase("built-ins/Async/baz.js", false, Category = "async")]
     public void Async(string test, bool strict)
     {

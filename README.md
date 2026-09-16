@@ -180,13 +180,17 @@ List of most important things you can tweak in configuration file:
 | ExcludedFlags       | []                       | Any [flag](https://github.com/tc39/test262/blob/main/CONTRIBUTING.md#flags) you want to ignore       |
 | ExcludedDirectories | []                       | Any sub-directory you would like to ignore, for example annexB                                       |
 | ExcludedFiles       | []                       | List of specific files you would like to ignore                                                      |
-| NonParallelFeatures | []                       | Features whose generated test methods should receive `[NonParallelizable]`                           |
-| NonParallelFlags    | []                       | Flags whose generated test methods should receive `[NonParallelizable]`                              |
-| NonParallelFiles    | []                       | Specific files (exact path or glob) whose generated test methods should receive `[NonParallelizable]` |
+| NonParallelFeatures | []                       | Features whose generated test methods should be isolated from the parallel run                       |
+| NonParallelFlags    | []                       | Flags whose generated test methods should be isolated from the parallel run                          |
+| NonParallelFiles    | []                       | Specific files (exact path or glob) whose generated test methods should be isolated                  |
 
 Exclusion maps to setting `[Ignore]` attribute in test suite.
 
-Non-parallel marking maps to setting `[NonParallelizable]` on the affected generated test method(s). Because all tests under a given sub-directory (e.g. `built-ins/Atomics/waitAsync`) collapse into one generated method, marking any one entry serialises the whole group — sufficient for timing-sensitive feature suites such as `Atomics.waitAsync`. File entries use the test262 forward-slash path format; esprima-style `(default)` / `(strict mode)` suffixes are not supported here (the attribute is method-level).
+Non-parallel marking maps to `[Parallelizable(ParallelScope.None | ParallelScope.Children)]` on the affected generated test method(s). NUnit gives such a method its own isolated queue, so the group never runs alongside the rest of the suite, while the cases *within* the group still run in parallel with each other. That is what a timing-sensitive feature suite such as `Atomics.waitAsync` needs: those tests assert on elapsed time, and what makes them flaky is competing for CPU with the rest of the run, not running next to one another.
+
+Because all tests under a given sub-directory (e.g. `built-ins/Atomics/waitAsync`) collapse into one generated method, marking any one entry isolates the whole group. File entries use the test262 forward-slash path format; esprima-style `(default)` / `(strict mode)` suffixes are not supported here (the attribute is method-level).
+
+> Marking a group no longer serialises its cases against *each other*. If a group must run strictly one case at a time — because the cases share process-global state rather than merely being timing-sensitive — this setting is not sufficient on its own.
 
 ## Sharding the generated suite
 
