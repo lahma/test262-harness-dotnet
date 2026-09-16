@@ -85,14 +85,13 @@ public sealed class Test262Stream
     /// <summary>
     /// Returns specific test file from stream.
     /// </summary>
-    /// <param name="fileName"></param>
-    /// <returns></returns>
+    /// <param name="fileName">Root-relative file name, for example <c>language/statements/for/cptn-decl-expr-iter.js</c>.</param>
+    /// <returns>The parsed test file.</returns>
     public Test262File GetTestFile(string fileName)
     {
         var fileSystem = Options.FileSystem;
         using var stream = fileSystem.OpenFile($"/test/{fileName}", FileMode.Open, FileAccess.Read, FileShare.Read);
-        var test262Files = Test262File.FromStream(stream, fileName, false).Single();
-        return test262Files;
+        return Test262File.FromStream(stream, fileName, generateInverseStrictTestCase: false).Single();
     }
 
     public IEnumerable<Test262File> GetTestFiles(string[]? subDirectories = null, Func<Test262File, bool>? testCaseFilter = null)
