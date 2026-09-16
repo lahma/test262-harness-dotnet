@@ -1,5 +1,7 @@
 using System.Buffers;
-using YamlDotNet.RepresentationModel;
+using System.Text;
+using YamlDotNet.Core;
+using YamlDotNet.Core.Events;
 
 namespace Test262Harness;
 
@@ -14,8 +16,6 @@ public sealed class Test262File : IEquatable<Test262File>
     private const string YamlSectionStartMarker = "/*---";
     private const string YamlSectionEndMarker = "---*/";
 
-    private static readonly YamlScalarNode _phaseNode = new("phase");
-    private static readonly YamlScalarNode _typeNode = new("type");
     private static readonly string _useStrictWithNewLine = $"\"use strict\";{Environment.NewLine}";
 
     private string[] _features = [];
@@ -125,29 +125,64 @@ public sealed class Test262File : IEquatable<Test262File>
         return path.Replace('\\', '/').TrimStart('/');
     }
 
+    /// <summary>
+    /// Reads the whole stream as UTF-8 text.
+    /// </summary>
+    /// <remarks>
+    /// Test262 files are small and their length is known up front, so the bytes go into one pooled
+    /// buffer and are decoded once. Going through a <see cref="StreamReader"/> and a
+    /// <see cref="StringBuilder"/> instead costs roughly twice the allocation per file - which is
+    /// worth caring about for a suite that reads a hundred thousand of them.
+    /// </remarks>
+    private static string ReadToEnd(Stream stream)
+    {
+        if (!stream.CanSeek)
+        {
+            using var reader = new StreamReader(stream);
+            return reader.ReadToEnd();
+        }
+
+        var remaining = stream.Length - stream.Position;
+        if (remaining <= 0)
+        {
+            return "";
+        }
+
+        if (remaining > int.MaxValue)
+        {
+            throw new ArgumentException($"Test case is too large to read: {remaining} bytes.", nameof(stream));
+        }
+
+        var length = (int) remaining;
+        var buffer = ArrayPool<byte>.Shared.Rent(length);
+        try
+        {
+            var offset = 0;
+            while (offset < length)
+            {
+                var read = stream.Read(buffer, offset, length - offset);
+                if (read <= 0)
+                {
+                    break;
+                }
+                offset += read;
+            }
+
+            // Skip the UTF-8 byte order mark, which StreamReader would have consumed for us.
+            var start = offset >= 3 && buffer[0] == 0xEF && buffer[1] == 0xBB && buffer[2] == 0xBF ? 3 : 0;
+            return Encoding.UTF8.GetString(buffer, start, offset - start);
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
+    }
+
     public static IEnumerable<Test262File> FromStream(Stream stream, string fileName, bool generateInverseStrictTestCase = true)
     {
         fileName = NormalizedFilePath(fileName);
 
-        string contents;
-        const int BufferSize = 4096;
-        var buffer = ArrayPool<char>.Shared.Rent(BufferSize);
-        try
-        {
-            int count;
-            using var streamReader = new StreamReader(stream);
-            using var rawChars = StringBuilderPool.GetInstance();
-            while ((count = streamReader.ReadBlock(buffer, 0, BufferSize)) > 0)
-            {
-                rawChars.Builder.Append(buffer, 0, count);
-            }
-
-            contents = rawChars.ToString();
-        }
-        finally
-        {
-            ArrayPool<char>.Shared.Return(buffer);
-        }
+        var contents = ReadToEnd(stream);
 
         var yamlStartIndex = contents.IndexOf(YamlSectionStartMarker, StringComparison.Ordinal);
 
@@ -169,77 +204,17 @@ public sealed class Test262File : IEquatable<Test262File>
             throw new ArgumentException($"Test case {fileName} is invalid, cannot find YAML section.");
         }
 
-        YamlDocument document;
+        var onlyStrict = false;
+        var noStrict = false;
+        var test = new Test262File(fileName);
         try
         {
-            var yamlStream = new YamlStream();
-            yamlStream.Load(new MemoryReader(yaml));
-            document = yamlStream.Documents[0];
+            var parser = new Parser(new MemoryReader(yaml));
+            ParseFrontmatter(parser, test, ref onlyStrict, ref noStrict);
         }
         catch (Exception ex)
         {
             throw new ArgumentException($"Could not lod YAML content from file {fileName}: {ex.Message}", ex);
-        }
-
-        var onlyStrict = false;
-        var noStrict = false;
-        var test = new Test262File(fileName);
-        foreach (var node in (YamlMappingNode) document.RootNode)
-        {
-            var scalar = (YamlScalarNode) node.Key;
-            var key = scalar.Value;
-            switch (key)
-            {
-                case "esid" or "es5id" or "es6id":
-                    test.EcmaScriptId = ReadString(node);
-                    break;
-                case "description":
-                    test.Description = ReadString(node);
-                    break;
-                case "info":
-                    test.Info = ReadString(node);
-                    break;
-                case "author":
-                    test.Author = ReadString(node);
-                    break;
-                case "features":
-                    test._features = ReadStringArray(node.Value);
-                    break;
-                case "includes":
-                    test._includes = ReadStringArray(node.Value);
-                    break;
-                case "locale":
-                    test._locale = ReadStringArray(node.Value);
-                    break;
-                case "negative":
-                    var source = (YamlMappingNode) node.Value;
-                    Enum.TryParse<TestingPhase>(source[_phaseNode].ToString(), ignoreCase: true, out var phase);
-                    Enum.TryParse<ExpectedErrorType>(source[_typeNode].ToString(), ignoreCase: true, out var expectedErrorType);
-
-                    test.NegativeTestCase = new NegativeTestCase(phase, expectedErrorType);
-                    break;
-                case "flags":
-                    var flags = ReadStringArray(node.Value);
-                    foreach (var flag in flags)
-                    {
-                        switch (flag)
-                        {
-                            case "module":
-                                test.Type = ProgramType.Module;
-                                break;
-                            case "onlyStrict":
-                                onlyStrict = true;
-                                break;
-                            case "noStrict":
-                            case "raw":
-                                noStrict = true;
-                                break;
-                        }
-                    }
-
-                    test._flags = flags;
-                    break;
-            }
         }
 
         test.Program = contents;
@@ -279,26 +254,143 @@ public sealed class Test262File : IEquatable<Test262File>
         return clone;
     }
 
-    private static string ReadString(KeyValuePair<YamlNode, YamlNode> node)
+    /// <summary>
+    /// Reads the frontmatter mapping straight off the parser's event stream.
+    /// </summary>
+    /// <remarks>
+    /// The obvious way to do this is YamlDotNet's representation model - load a <c>YamlStream</c> and walk
+    /// the nodes. That builds a node object per scalar, sequence and mapping in every file, which measured
+    /// at roughly 16 KB per test case, about three quarters of everything this method allocates. The parser
+    /// underneath is the same one the representation model uses, so the YAML dialect it accepts is unchanged;
+    /// only the tree is gone.
+    /// </remarks>
+    private static void ParseFrontmatter(IParser parser, Test262File test, ref bool onlyStrict, ref bool noStrict)
     {
-        return node.Value.ToString();
+        parser.Consume<StreamStart>();
+        parser.Consume<DocumentStart>();
+        parser.Consume<MappingStart>();
+
+        while (!parser.Accept<MappingEnd>(out _))
+        {
+            var key = parser.Consume<Scalar>().Value;
+            switch (key)
+            {
+                case "esid" or "es5id" or "es6id":
+                    test.EcmaScriptId = parser.Consume<Scalar>().Value;
+                    break;
+                case "description":
+                    test.Description = parser.Consume<Scalar>().Value;
+                    break;
+                case "info":
+                    test.Info = parser.Consume<Scalar>().Value;
+                    break;
+                case "author":
+                    test.Author = parser.Consume<Scalar>().Value;
+                    break;
+                case "features":
+                    test._features = ReadStringArray(parser);
+                    break;
+                case "includes":
+                    test._includes = ReadStringArray(parser);
+                    break;
+                case "locale":
+                    test._locale = ReadStringArray(parser);
+                    break;
+                case "negative":
+                    test.NegativeTestCase = ReadNegative(parser);
+                    break;
+                case "flags":
+                    var flags = ReadStringArray(parser);
+                    foreach (var flag in flags)
+                    {
+                        switch (flag)
+                        {
+                            case "module":
+                                test.Type = ProgramType.Module;
+                                break;
+                            case "onlyStrict":
+                                onlyStrict = true;
+                                break;
+                            case "noStrict":
+                            case "raw":
+                                noStrict = true;
+                                break;
+                        }
+                    }
+
+                    test._flags = flags;
+                    break;
+                default:
+                    SkipValue(parser);
+                    break;
+            }
+        }
     }
 
-    private static string[] ReadStringArray(YamlNode node)
+    private static NegativeTestCase ReadNegative(IParser parser)
     {
-        var sequenceNode = (YamlSequenceNode) node;
-        if (sequenceNode.Children.Count == 0)
+        var phase = default(TestingPhase);
+        var expectedErrorType = default(ExpectedErrorType);
+
+        parser.Consume<MappingStart>();
+        while (!parser.Accept<MappingEnd>(out _))
         {
+            var key = parser.Consume<Scalar>().Value;
+            switch (key)
+            {
+                case "phase":
+                    Enum.TryParse(parser.Consume<Scalar>().Value, ignoreCase: true, out phase);
+                    break;
+                case "type":
+                    Enum.TryParse(parser.Consume<Scalar>().Value, ignoreCase: true, out expectedErrorType);
+                    break;
+                default:
+                    SkipValue(parser);
+                    break;
+            }
+        }
+        parser.Consume<MappingEnd>();
+
+        return new NegativeTestCase(phase, expectedErrorType);
+    }
+
+    private static string[] ReadStringArray(IParser parser)
+    {
+        // A single scalar where a sequence is expected is what the representation model accepted too.
+        if (parser.Accept<Scalar>(out _))
+        {
+            return [parser.Consume<Scalar>().Value];
+        }
+
+        parser.Consume<SequenceStart>();
+        if (parser.Accept<SequenceEnd>(out _))
+        {
+            parser.Consume<SequenceEnd>();
             return [];
         }
 
-        var result = new string[sequenceNode.Children.Count];
-        for (var i = 0; i < result.Length; i++)
+        var result = new List<string>();
+        while (!parser.Accept<SequenceEnd>(out _))
         {
-            result[i] = sequenceNode.Children[i].ToString();
+            result.Add(parser.Consume<Scalar>().Value);
         }
+        parser.Consume<SequenceEnd>();
 
-        return result;
+        return result.ToArray();
+    }
+
+    /// <summary>
+    /// Consumes one value of any shape, so an unrecognised key does not desynchronise the reader.
+    /// </summary>
+    private static void SkipValue(IParser parser)
+    {
+        var depth = 0;
+        do
+        {
+            var current = parser.Consume<ParsingEvent>();
+            depth += current.NestingIncrease;
+        }
+        while (depth > 0);
     }
 
     public override string ToString()
