@@ -12,7 +12,7 @@ public class BuiltInsTests : Test262Test
         RunTestCode(test, strict);
     }
 
-    [NonParallelizable]
+    [Parallelizable(ParallelScope.None | ParallelScope.Children)]
     [TestCase("built-ins/Atomics/waitAsync/descriptor.js", false, Category = "Atomics.waitAsync,Atomics")]
     [TestCase("built-ins/Atomics/waitAsync/length.js", false, Category = "Atomics.waitAsync,Atomics")]
     public void Atomics_waitAsync(string test, bool strict)

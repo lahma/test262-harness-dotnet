@@ -19,7 +19,7 @@ public class {{ TestClassName }} : Test262Test
 {
 {%- for testCollection in TestCaseGroupings -%}
 {%- if testCollection.NonParallelizable %}
-    [NonParallelizable]
+    [Parallelizable(ParallelScope.None | ParallelScope.Children)]
 {%- endif %}
 {%- for test in testCollection.TestCases %}
     [TestCase("{{ test.FileName }}", {{ test.Strict }}{% if test.Category %}, Category = "{{ test.Category }}"{% endif %}{% if test.IgnoreReason %}, IgnoreReason = "{{ test.IgnoreReason }}"{% endif %})]
