@@ -1,4 +1,4 @@
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using Test262Harness.TestSuite.Generator;
 using Zio;
@@ -57,6 +57,38 @@ public class TestSuiteGeneratorTests
             await generator.Generate(stream);
 
             var content = await File.ReadAllTextAsync(Path.Combine(targetPath, "Tests262Harness.Tests.built-ins.generated.cs"));
+            return StripGeneratedHeader(content);
+        }
+        finally
+        {
+            Directory.Delete(targetPath, recursive: true);
+        }
+    }
+
+    private static async Task<string> GenerateBootstrapOutput(TestSuiteGeneratorOptions options)
+    {
+        var fs = CreateFixture();
+        var stream = Test262Stream.FromFileSystem(fs, opts =>
+        {
+            opts.SubDirectories = ["built-ins"];
+            opts.GenerateInverseStrictTestCase = false;
+            opts.LogInfo = (_, _) => { };
+            opts.LogError = (_, _) => { };
+        });
+
+        var targetPath = Path.Combine(Path.GetTempPath(), "Test262HarnessGeneratorTests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(targetPath);
+
+        try
+        {
+            options.TargetPath = targetPath;
+            options.Namespace = "Generated.Tests";
+            options.SuiteGitSha = "stable-sha-for-snapshot";
+
+            var generator = new TestSuiteGenerator(options, usedSettingsFilePath: "stable-settings-path");
+            await generator.Generate(stream);
+
+            var content = await File.ReadAllTextAsync(Path.Combine(targetPath, "Tests262Harness.Test262Test.generated.cs"));
             return StripGeneratedHeader(content);
         }
         finally
@@ -138,6 +170,49 @@ public class TestSuiteGeneratorTests
         {
             ExcludedFeatures = ["Atomics.waitAsync"],
             NonParallelFeatures = ["Atomics.waitAsync"],
+        });
+        await VerifyOutput(output);
+    }
+
+    [Test]
+    public async Task TUnitDefaultSettingsEmitsNoNonParallelizable()
+    {
+        var output = await GenerateBuiltInsOutput(new TestSuiteGeneratorOptions
+        {
+            TestFramework = TestFramework.TUnit,
+        });
+        await VerifyOutput(output);
+    }
+
+    [Test]
+    public async Task TUnitNonParallelAndIgnoredGroups()
+    {
+        var output = await GenerateBuiltInsOutput(new TestSuiteGeneratorOptions
+        {
+            TestFramework = TestFramework.TUnit,
+            ExcludedFeatures = ["Atomics.waitAsync"],
+            NonParallelFlags = ["async"],
+        });
+        await VerifyOutput(output);
+    }
+
+    [Test]
+    public async Task TUnitBootstrapDefaultSettings()
+    {
+        var output = await GenerateBootstrapOutput(new TestSuiteGeneratorOptions
+        {
+            TestFramework = TestFramework.TUnit,
+        });
+        await VerifyOutput(output);
+    }
+
+    [Test]
+    public async Task TUnitBootstrapNonParallel()
+    {
+        var output = await GenerateBootstrapOutput(new TestSuiteGeneratorOptions
+        {
+            TestFramework = TestFramework.TUnit,
+            Parallel = false,
         });
         await VerifyOutput(output);
     }

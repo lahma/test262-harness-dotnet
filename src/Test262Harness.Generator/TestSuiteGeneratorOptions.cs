@@ -7,7 +7,6 @@ public class TestSuiteGeneratorOptions
     public string SuiteGitSha { get; set; } = "";
     public string SuiteDirectory { get; set; } = "";
 
-    [JsonIgnore]
     public TestFramework TestFramework { get; set; } = TestFramework.NUnit;
 
     public string TargetPath { get; set; } = ".";
