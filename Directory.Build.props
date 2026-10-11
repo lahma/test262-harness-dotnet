@@ -38,6 +38,10 @@
 
     <UseArtifactsOutput>true</UseArtifactsOutput>
 
+    <!-- Verify Open Source Maintenance Fee: non-revenue open source project exemption, renew yearly -->
+    <Verify_SponsorshipExemption>OpenSource</Verify_SponsorshipExemption>
+    <Verify_SponsorshipExemptionUntil>2027-09</Verify_SponsorshipExemptionUntil>
+
   </PropertyGroup>
 
 </Project>
