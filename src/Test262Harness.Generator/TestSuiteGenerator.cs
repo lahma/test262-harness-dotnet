@@ -349,8 +349,9 @@ public class TestSuiteGenerator
             template = await stream.ReadToEndAsync();
         }
 
-        using var sha = new HMACSHA256();
-        var hash = Convert.ToHexString(sha.ComputeHash(Encoding.UTF8.GetBytes(template)));
+        // A plain digest: an HMAC without a key of our own keys itself randomly, so the "template SHA" in every
+        // generated header would differ on each run of the same template.
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(template)));
 
         return (_parser.Parse(template), hash);
     }
