@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO.Compression;
+using Zio.FileSystems;
 
 namespace Test262Harness;
 
@@ -30,57 +31,79 @@ public static class Test262StreamExtensions
 
         tempPath ??= Path.GetTempPath();
         var tempFile = Path.Combine(tempPath, $"test262-{commitSha}.zip");
+        var zipSubDirectory = $"test262-{commitSha}";
 
         var tempOptions = new Test262StreamOptions(null!);
         configure?.Invoke(tempOptions);
 
-        var ok = false;
-        var delete = false;
         if (File.Exists(tempFile))
         {
             tempOptions.LogInfo("Found test262 repository archive from {0}", tempFile);
             try
             {
-                using var _ = ZipFile.OpenRead(tempFile);
-                ok = true;
+                // Opening the suite reads the whole archive anyway, so that is the validation too.
+                return Open(tempFile, tempPath, zipSubDirectory, extract, configure, tempOptions);
             }
-            catch
+            catch (Exception)
             {
                 tempOptions.LogError("Could not open the archive, deleting it and downloading again.");
-                ok = false;
-                delete = true;
             }
         }
 
-        if (!ok)
+        await Download(commitSha, tempFile, tempOptions.LogInfo);
+        return Open(tempFile, tempPath, zipSubDirectory, extract, configure, tempOptions);
+    }
+
+    private static Test262Stream Open(
+        string archive,
+        string tempPath,
+        string zipSubDirectory,
+        bool extract,
+        Action<Test262StreamOptions>? configure,
+        Test262StreamOptions logOptions)
+    {
+        if (!extract)
         {
-            await Download(commitSha, delete, tempFile, tempOptions.LogInfo);
+            return Test262Stream.FromZipArchive(archive, zipSubDirectory, configure);
         }
 
-        var zipSubDirectory = $"test262-{commitSha}";
-
-        if (extract)
+        var directory = Path.Combine(tempPath, zipSubDirectory);
+        if (!Directory.Exists(directory))
         {
-            tempOptions.LogInfo("Extracting archive...");
-            ZipFile.ExtractToDirectory(tempFile, tempPath);
-
-            // zio wants /mnt/c format
-            var sourcePath = Path.Combine(tempPath, zipSubDirectory)
-                .Replace(@"C:\", "/mnt/c/")
-                .Replace(@"D:\", "/mnt/d/")
-                .Replace(@"E:\", "/mnt/e/");
-
-            tempOptions.LogInfo("Building test262stream from path {0}", sourcePath);
-
-            return Test262Stream.FromDirectory(sourcePath);
+            // Extract next to the target and move it into place, so an interrupted extraction never leaves
+            // a partial tree behind that a later run would take for a complete one.
+            logOptions.LogInfo("Extracting archive...");
+            var staging = Path.Combine(tempPath, $"{zipSubDirectory}.extracting-{Guid.NewGuid():N}");
+            try
+            {
+                ZipFile.ExtractToDirectory(archive, staging);
+                try
+                {
+                    Directory.Move(Path.Combine(staging, zipSubDirectory), directory);
+                }
+                catch (IOException) when (Directory.Exists(directory))
+                {
+                    // another process finished extracting the same commit first
+                }
+            }
+            finally
+            {
+                if (Directory.Exists(staging))
+                {
+                    Directory.Delete(staging, recursive: true);
+                }
+            }
         }
 
-        return Test262Stream.FromZipArchive(tempFile, zipSubDirectory, configure);
+        // Zio addresses the physical file system with its own path syntax (/mnt/c/... on Windows).
+        var sourcePath = new PhysicalFileSystem().ConvertPathFromInternal(directory).FullName;
+        logOptions.LogInfo("Building test262stream from path {0}", sourcePath);
+
+        return Test262Stream.FromDirectory(sourcePath, configure);
     }
 
     private static async Task Download(
         string commitSha,
-        bool delete,
         string tempFile,
         Logger logger)
     {
@@ -88,23 +111,45 @@ public static class Test262StreamExtensions
 
         try
         {
-            if (delete && File.Exists(tempFile))
-            {
-                File.Delete(tempFile);
-            }
-
             var uri = $"https://github.com/tc39/test262/archive/{commitSha}.zip";
 
             logger("Loading test262 repository archive from {0}", uri);
 
             var sw = Stopwatch.StartNew();
 
-            using var client = new HttpClient();
+            // Download beside the target and move it into place, so neither an interrupted download nor a
+            // second process downloading the same commit can leave a half-written archive under the real name.
+            var partial = $"{tempFile}.{Guid.NewGuid():N}.partial";
+            try
+            {
+                using (var client = new HttpClient())
+                using (var downloadStream = await client.GetStreamAsync(uri))
+                using (var writeStream = File.Create(partial))
+                {
+                    await downloadStream.CopyToAsync(writeStream);
+                }
 
-            using var downloadStream = await client.GetStreamAsync(uri);
-            using var writeStream = File.OpenWrite(tempFile);
+                if (File.Exists(tempFile))
+                {
+                    File.Delete(tempFile);
+                }
 
-            await downloadStream.CopyToAsync(writeStream);
+                try
+                {
+                    File.Move(partial, tempFile);
+                }
+                catch (IOException) when (File.Exists(tempFile))
+                {
+                    // another process finished downloading the same commit first
+                }
+            }
+            finally
+            {
+                if (File.Exists(partial))
+                {
+                    File.Delete(partial);
+                }
+            }
 
             sw.Stop();
 
