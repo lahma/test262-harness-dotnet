@@ -6,7 +6,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="SharpZipLib" />
     <PackageReference Include="YamlDotNet" />
     <PackageReference Include="Zio" />
     <PackageReference Include="ZString" />
