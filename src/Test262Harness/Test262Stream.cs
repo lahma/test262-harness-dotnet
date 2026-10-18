@@ -103,7 +103,7 @@ public sealed class Test262Stream
 
         foreach (var filePath in targetFiles)
         {
-            using var stream = fileSystem.OpenFile(filePath.FullName, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using var stream = fileSystem.OpenFile(filePath.Path, FileMode.Open, FileAccess.Read, FileShare.Read);
             foreach (var testCase in Test262File.FromStream(stream, filePath.FullName, Options.GenerateInverseStrictTestCase))
             {
                 if (testCaseFilter(testCase))
@@ -121,7 +121,7 @@ public sealed class Test262Stream
 
         foreach (var filePath in targetFiles)
         {
-            using var stream = fileSystem.OpenFile(filePath.FullName, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using var stream = fileSystem.OpenFile(filePath.Path, FileMode.Open, FileAccess.Read, FileShare.Read);
             foreach (var testCase in Test262File.FromStream(stream, filePath.FullName, generateInverseStrictTestCase: false))
             {
                 yield return testCase;
@@ -133,7 +133,10 @@ public sealed class Test262Stream
     {
         subDirectories ??= Options.SubDirectories;
 
-        bool SearchPredicate(ref FileSystemItem item) => item.FullName.EndsWith(".js", StringComparison.OrdinalIgnoreCase) && !item.FullName.Contains("_FIXTURE", StringComparison.OrdinalIgnoreCase);
+        var fileFilter = Options.FileFilter;
+        bool SearchPredicate(ref FileSystemItem item) => item.FullName.EndsWith(".js", StringComparison.OrdinalIgnoreCase)
+                                                         && !item.FullName.Contains("_FIXTURE", StringComparison.OrdinalIgnoreCase)
+                                                         && fileFilter(item);
 
         IEnumerable<FileSystemItem> result = [];
         foreach (var subDirectory in subDirectories)
