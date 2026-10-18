@@ -7,9 +7,20 @@ using TUnit.Core;
 
 using Test262Harness;
 
+[assembly: ParallelLimiter<Generated.Tests.ProcessorCountParallelLimit>]
+
 namespace Generated.Tests;
 
 using static HookType;
+
+/// <summary>
+/// Runs one test per core. A test262 test body is CPU-bound - each one builds and runs its own script engine -
+/// so TUnit's default of several tests per core only keeps more engines alive at once, without finishing sooner.
+/// </summary>
+public sealed class ProcessorCountParallelLimit : TUnit.Core.Interfaces.IParallelLimit
+{
+    public int Limit => Environment.ProcessorCount;
+}
 
 /// <summary>
 /// Global state for test run. Generated test suite requires that Test262Stream is initialized before tests start to run.

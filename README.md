@@ -198,6 +198,11 @@ The generated attributes differ by framework:
 | Fully ignored group        | `[Test]` + `[Ignore("...")]`                               | `[Test]` + `[Skip("...")]`                                   |
 | Non-parallel group         | `[Parallelizable(ParallelScope.None \| ParallelScope.Children)]` | `[NotInParallel]`                                      |
 | Parallel base class marker | `[Parallelizable(ParallelScope.All)]` when `Parallel`      | `[NotInParallel]` when `Parallel` is `false` (TUnit runs in parallel by default) |
+| Degree of parallelism      | one worker per core (NUnit's default)                      | `[assembly: ParallelLimiter<ProcessorCountParallelLimit>]` when `Parallel`: one test per core instead of TUnit's default of several |
+
+TUnit's default runs several tests per core at once. A test262 test body is CPU-bound - it builds and runs a script
+engine - so that only keeps more engines alive without finishing sooner: on the full suite with a Jint body, capping
+it at one test per core took the run from ~45 s and a 12 GB peak working set to ~41 s and 6 GB.
 
 Exclusion maps to the `[Ignore]` attribute (NUnit) or `[Skip]` attribute (TUnit) in the generated test suite.
 
