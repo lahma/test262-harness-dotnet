@@ -16,8 +16,8 @@ public class BuiltInsTests : Test262Test
     }
 
     [Test]
-    [Arguments("built-ins/Atomics/waitAsync/descriptor.js", false, Categories = new[] { "Atomics.waitAsync,Atomics" })]
-    [Arguments("built-ins/Atomics/waitAsync/length.js", false, Categories = new[] { "Atomics.waitAsync,Atomics" })]
+    [Arguments("built-ins/Atomics/waitAsync/descriptor.js", false, Categories = new[] { "Atomics.waitAsync", "Atomics" })]
+    [Arguments("built-ins/Atomics/waitAsync/length.js", false, Categories = new[] { "Atomics.waitAsync", "Atomics" })]
     public void Atomics_waitAsync(string test, bool strict)
     {
         RunTestCode(test, strict);

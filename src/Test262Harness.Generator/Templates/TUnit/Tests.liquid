@@ -32,7 +32,7 @@ public class {{ TestClassName }} : Test262Test
 {%- endif %}
     [Test]
 {%- for test in testCollection.TestCases %}
-    [Arguments("{{ test.FileName }}", {{ test.Strict }}{% if test.Category %}, Categories = new[] { "{{ test.Category }}" }{% endif %}{% if test.IgnoreReason %}, Skip = "{{ test.IgnoreReason }}"{% endif %})]
+    [Arguments("{{ test.FileName }}", {{ test.Strict }}{% if test.Category %}, Categories = new[] { "{{ test.Categories | join: '", "' }}" }{% endif %}{% if test.IgnoreReason %}, Skip = "{{ test.IgnoreReason }}"{% endif %})]
 {%- endfor %}
     public void {{ testCollection.Name }}(string test, bool strict)
     {

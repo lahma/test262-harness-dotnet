@@ -193,7 +193,7 @@ The generated attributes differ by framework:
 |:---------------------------|:-----------------------------------------------------------|:-------------------------------------------------------------|
 | One-time setup             | `[SetUpFixture]` + `[OneTimeSetUp]` on `TestHarness`       | `[Before(Assembly)]` static method on `TestHarness`          |
 | Test case                  | `[TestCase("file", strict, ...)]`                          | `[Test]` + `[Arguments("file", strict, ...)]`                |
-| Per-case category          | `Category = "..."`                                         | `Categories = new[] { "..." }`                               |
+| Per-case category          | `Category = "feature,flag"` (NUnit splits it on commas)    | `Categories = new[] { "feature", "flag" }`                   |
 | Per-case ignore            | `IgnoreReason = "..."`                                     | `Skip = "..."`                                               |
 | Fully ignored group        | `[Test]` + `[Ignore("...")]`                               | `[Test]` + `[Skip("...")]`                                   |
 | Non-parallel group         | `[Parallelizable(ParallelScope.None \| ParallelScope.Children)]` | `[NotInParallel]`                                      |
