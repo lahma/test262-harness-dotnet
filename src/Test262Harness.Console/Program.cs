@@ -18,12 +18,6 @@ return app.Run(args);
 [Description("Generates test suite")]
 internal sealed class GenerateCommand : AsyncCommand<GenerateCommand.Settings>
 {
-    private static readonly JsonSerializerOptions _serializerOptions = new()
-    {
-        Converters = { new JsonStringEnumConverter() },
-        ReadCommentHandling = JsonCommentHandling.Skip
-    };
-
     public sealed class Settings : CommandSettings
     {
         [Description("GitHub SHA for test262 repository commit")]
@@ -70,7 +64,7 @@ internal sealed class GenerateCommand : AsyncCommand<GenerateCommand.Settings>
         if (File.Exists(settingsFilePath))
         {
             await using var stream = File.OpenRead(settingsFilePath);
-            options = await JsonSerializer.DeserializeAsync<TestSuiteGeneratorOptions>(stream, _serializerOptions, cancellationToken);
+            options = await JsonSerializer.DeserializeAsync(stream, SettingsJsonContext.Default.TestSuiteGeneratorOptions, cancellationToken);
             usedSettingsFilePath = settingsFilePath;
 
             AnsiConsole.MarkupLine(CultureInfo.InvariantCulture, "Read settings from [yellow]{0}[/]", settingsFilePath);
@@ -186,4 +180,14 @@ internal sealed class GenerateCommand : AsyncCommand<GenerateCommand.Settings>
             options.ExcludedFiles = options.ExcludedFiles.Concat(valid).ToArray();
         }
     }
+}
+
+/// <summary>
+/// Reads the settings file with generated code rather than reflection, which a one-shot tool would otherwise
+/// pay for in JIT time on every run.
+/// </summary>
+[JsonSourceGenerationOptions(ReadCommentHandling = JsonCommentHandling.Skip, UseStringEnumConverter = true)]
+[JsonSerializable(typeof(TestSuiteGeneratorOptions))]
+internal sealed partial class SettingsJsonContext : JsonSerializerContext
+{
 }
