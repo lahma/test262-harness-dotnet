@@ -108,7 +108,9 @@ public sealed partial class Test262File
                     }
                     break;
                 case FrontmatterReader.Flags:
-                    if (!value.TryGetArray(out flags))
+                    // YamlDotNet's path applies the strictness and module flags of every flags key it meets, so a
+                    // repeated key is not simply last-wins there: leave that to it.
+                    if (flags is not null || !value.TryGetArray(out flags))
                     {
                         return false;
                     }

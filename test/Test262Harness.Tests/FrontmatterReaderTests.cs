@@ -47,6 +47,8 @@ public class FrontmatterReaderTests
         yield return Case("trailing comment", "description: x # comment\n");
         yield return Case("tab", "description:\tx\n");
         yield return Case("carriage return", "description: x\r\nflags: [raw]\r\n");
+        yield return Case("repeated flags", "flags: [module]\nflags: [raw]\n");
+        yield return Case("repeated flags with strictness", "flags: [onlyStrict]\nflags: [noStrict]\n");
         yield return Case("escape in double quotes", "description: \"a\\tb\"\n");
         yield return Case("multi-line single quoted", "description: 'one\n  two'\n");
         yield return Case("keep chomping", "info: |+\n  kept\n\ndescription: x\n");
@@ -95,6 +97,29 @@ public class FrontmatterReaderTests
         files[0].Strict.Should().BeTrue();
         files[0].Description.Should().Be("piped");
         files[0].Program.Should().EndWith(content);
+    }
+
+    /// <summary>
+    /// The program is decoded on first use, so it must not be decoded from a buffer its owner can still change.
+    /// </summary>
+    [Test]
+    public void CopiesTheContentOfAWritableMemoryStream()
+    {
+        var content = "/*---\ndescription: first\n---*/\nvar first;\n";
+        using var stream = new MemoryStream();
+        stream.Write(Encoding.UTF8.GetBytes(content));
+        stream.Position = 0;
+
+        var files = Test262File.FromStream(stream, "test/first.js").ToList();
+
+        stream.SetLength(0);
+        stream.Write(Encoding.UTF8.GetBytes("/*---\ndescription: second\n---*/\nvar overwritten;\n"));
+
+        files.Should().HaveCount(2);
+        foreach (var file in files)
+        {
+            file.Program.Should().EndWith(content);
+        }
     }
 
     /// <summary>
@@ -217,6 +242,20 @@ public class FrontmatterReaderTests
         }
 
         error.Should().BeNull();
+
+        // the variants FromStream yields: non-strict unless strict-only or a module, strict unless ruled out
+        var expectedStrict = new List<bool>();
+        if (expected.File!.Type == ProgramType.Script && !expected.OnlyStrict)
+        {
+            expectedStrict.Add(false);
+        }
+
+        if (!expected.NoStrict)
+        {
+            expectedStrict.Add(true);
+        }
+
+        actual!.Select(x => x.Strict).Should().Equal(expectedStrict, "variants read from bytes");
         foreach (var file in actual!)
         {
             var reference = file.Strict ? expected.File!.AsStrict() : expected.File!;

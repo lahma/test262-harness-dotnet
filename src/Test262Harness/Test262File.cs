@@ -144,11 +144,12 @@ public sealed partial class Test262File : IEquatable<Test262File>
     /// Only the frontmatter is decoded here; the program stays as the file's UTF-8 bytes until someone asks
     /// for it. A zip-backed suite hands out read-only views over the decompressed bytes it already holds, so
     /// those are kept by reference rather than copied; any other seekable stream is read into one exact-size
-    /// array, half the size of the text it holds.
+    /// array, half the size of the text it holds. A writable memory stream is copied too: its owner may reuse
+    /// the buffer for other content before the program is decoded.
     /// </remarks>
     private static Test262File ReadAndParse(Stream stream, string fileName, out bool onlyStrict, out bool noStrict)
     {
-        if (stream is MemoryStream memoryStream && memoryStream.TryGetBuffer(out var segment))
+        if (stream is MemoryStream { CanWrite: false } memoryStream && memoryStream.TryGetBuffer(out var segment))
         {
             var position = (int) memoryStream.Position;
             memoryStream.Position = memoryStream.Length;
@@ -182,6 +183,15 @@ public sealed partial class Test262File : IEquatable<Test262File>
         return Parse(buffer, 0, offset, fileName, out onlyStrict, out noStrict);
     }
 
+    /// <summary>
+    /// Reads one test file from <paramref name="stream"/> and returns its test cases: non-strict, strict or both,
+    /// as its flags allow.
+    /// </summary>
+    /// <remarks>
+    /// The program is decoded from the file's bytes on first use. A read-only <see cref="MemoryStream"/> that
+    /// exposes its buffer is read in place and that buffer is kept by reference, so it must not change afterwards;
+    /// the content of any other stream is copied.
+    /// </remarks>
     public static IEnumerable<Test262File> FromStream(Stream stream, string fileName, bool generateInverseStrictTestCase = true)
     {
         fileName = NormalizedFilePath(fileName);
