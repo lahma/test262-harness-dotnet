@@ -46,16 +46,24 @@ public class TestCase
     public TestCase(Test262File file, string? ignoreReason, bool nonParallelizable = false)
     {
         FileName = file.FileName.StartsWith("test/", StringComparison.OrdinalIgnoreCase) ? file.FileName[5..] : file.FileName;
-        Category = file.Features.Length > 0 || file.Flags.Length > 0
-            ? string.Join(",", file.Features.ToArray().Concat(file.Flags.ToArray()))
-            : null;
+        Categories = [.. file.Features, .. file.Flags];
+        Category = Categories.Length > 0 ? string.Join(",", Categories) : null;
         IgnoreReason = ignoreReason;
         Strict = file.Strict;
         NonParallelizable = nonParallelizable;
     }
 
     public string FileName { get; set; }
+
+    /// <summary>
+    /// The test's features and flags, comma-separated; NUnit splits a category string on commas.
+    /// </summary>
     public string? Category { get; set; }
+
+    /// <summary>
+    /// The test's features and flags, one per element, for frameworks that take categories as a list.
+    /// </summary>
+    public string[] Categories { get; set; }
     public string? IgnoreReason { get; set; }
     public bool Strict { get; set; }
     public bool NonParallelizable { get; set; }
