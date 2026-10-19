@@ -1,4 +1,3 @@
-using System.Buffers;
 using System.Text;
 using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
@@ -11,7 +10,7 @@ namespace Test262Harness;
 /// <remarks>
 /// Equality is based on <see cref="FileName"/> and <see cref="Strict"/>.
 /// </remarks>
-public sealed class Test262File : IEquatable<Test262File>
+public sealed partial class Test262File : IEquatable<Test262File>
 {
     private const string YamlSectionStartMarker = "/*---";
     private const string YamlSectionEndMarker = "---*/";
@@ -22,6 +21,13 @@ public sealed class Test262File : IEquatable<Test262File>
     private string[] _flags = [];
     private string[] _includes = [];
     private string[] _locale = [];
+    // The program is decoded from the file's bytes on first use (and prefixed for the strict variant), so
+    // enumerating a suite only to read its metadata - as the generator does - never decodes or copies a program.
+    private string? _program = "";
+    private string? _sourceText;
+    private byte[]? _sourceBytes;
+    private int _sourceOffset;
+    private int _sourceLength;
 
     private Test262File(string fileName)
     {
@@ -93,7 +99,7 @@ public sealed class Test262File : IEquatable<Test262File>
     /// <summary>
     /// The actual code to be interpreted.
     /// </summary>
-    public string Program { get; private set; } = "";
+    public string Program => _program ??= BuildProgram();
 
     public bool Strict { get; private set; }
 
@@ -125,99 +131,72 @@ public sealed class Test262File : IEquatable<Test262File>
         return path.Replace('\\', '/').TrimStart('/');
     }
 
+    private string BuildProgram()
+    {
+        var text = _sourceText ??= Encoding.UTF8.GetString(_sourceBytes!, _sourceOffset, _sourceLength);
+        return Strict ? _useStrictWithNewLine + text : text;
+    }
+
     /// <summary>
-    /// Reads the whole stream as UTF-8 text.
+    /// Reads and parses one test file from a stream.
     /// </summary>
     /// <remarks>
-    /// Test262 files are small and their length is known up front, so the bytes go into one pooled
-    /// buffer and are decoded once. Going through a <see cref="StreamReader"/> and a
-    /// <see cref="StringBuilder"/> instead costs roughly twice the allocation per file - which is
-    /// worth caring about for a suite that reads a hundred thousand of them.
+    /// Only the frontmatter is decoded here; the program stays as the file's UTF-8 bytes until someone asks
+    /// for it. A zip-backed suite hands out read-only views over the decompressed bytes it already holds, so
+    /// those are kept by reference rather than copied; any other seekable stream is read into one exact-size
+    /// array, half the size of the text it holds. A writable memory stream is copied too: its owner may reuse
+    /// the buffer for other content before the program is decoded.
     /// </remarks>
-    private static string ReadToEnd(Stream stream)
+    private static Test262File ReadAndParse(Stream stream, string fileName, out bool onlyStrict, out bool noStrict)
     {
+        if (stream is MemoryStream { CanWrite: false } memoryStream && memoryStream.TryGetBuffer(out var segment))
+        {
+            var position = (int) memoryStream.Position;
+            memoryStream.Position = memoryStream.Length;
+            return Parse(segment.Array!, segment.Offset + position, segment.Count - position, fileName, out onlyStrict, out noStrict);
+        }
+
         if (!stream.CanSeek)
         {
             using var reader = new StreamReader(stream);
-            return reader.ReadToEnd();
+            return Parse(reader.ReadToEnd(), fileName, allowFastPath: true, out onlyStrict, out noStrict);
         }
 
         var remaining = stream.Length - stream.Position;
-        if (remaining <= 0)
-        {
-            return "";
-        }
-
         if (remaining > int.MaxValue)
         {
             throw new ArgumentException($"Test case is too large to read: {remaining} bytes.", nameof(stream));
         }
 
-        var length = (int) remaining;
-        var buffer = ArrayPool<byte>.Shared.Rent(length);
-        try
+        var buffer = new byte[Math.Max(0, remaining)];
+        var offset = 0;
+        while (offset < buffer.Length)
         {
-            var offset = 0;
-            while (offset < length)
+            var read = stream.Read(buffer, offset, buffer.Length - offset);
+            if (read <= 0)
             {
-                var read = stream.Read(buffer, offset, length - offset);
-                if (read <= 0)
-                {
-                    break;
-                }
-                offset += read;
+                break;
             }
+            offset += read;
+        }
 
-            // Skip the UTF-8 byte order mark, which StreamReader would have consumed for us.
-            var start = offset >= 3 && buffer[0] == 0xEF && buffer[1] == 0xBB && buffer[2] == 0xBF ? 3 : 0;
-            return Encoding.UTF8.GetString(buffer, start, offset - start);
-        }
-        finally
-        {
-            ArrayPool<byte>.Shared.Return(buffer);
-        }
+        return Parse(buffer, 0, offset, fileName, out onlyStrict, out noStrict);
     }
 
+    /// <summary>
+    /// Reads one test file from <paramref name="stream"/> and returns its test cases: non-strict, strict or both,
+    /// as its flags allow.
+    /// </summary>
+    /// <remarks>
+    /// The program is decoded from the file's bytes on first use. A read-only <see cref="MemoryStream"/> that
+    /// exposes its buffer is read in place and that buffer is kept by reference, so it must not change afterwards;
+    /// the content of any other stream is copied.
+    /// </remarks>
     public static IEnumerable<Test262File> FromStream(Stream stream, string fileName, bool generateInverseStrictTestCase = true)
     {
         fileName = NormalizedFilePath(fileName);
 
-        var contents = ReadToEnd(stream);
-
-        var yamlStartIndex = contents.IndexOf(YamlSectionStartMarker, StringComparison.Ordinal);
-
-        if (yamlStartIndex < 0)
-        {
-            throw new ArgumentException($"Test case {fileName} is invalid, cannot find YAML section start.");
-        }
-
-        var yamlEndIndex = contents.IndexOf(YamlSectionEndMarker, yamlStartIndex, StringComparison.Ordinal);
-
-        if (yamlEndIndex < 0)
-        {
-            throw new ArgumentException($"Test case {fileName} is invalid, cannot find YAML section end.");
-        }
-
-        var yaml = contents.AsMemory(yamlStartIndex + YamlSectionStartMarker.Length, yamlEndIndex - YamlSectionEndMarker.Length - yamlStartIndex);
-        if (yaml.IsEmpty)
-        {
-            throw new ArgumentException($"Test case {fileName} is invalid, cannot find YAML section.");
-        }
-
-        var onlyStrict = false;
-        var noStrict = false;
-        var test = new Test262File(fileName);
-        try
-        {
-            var parser = new Parser(new MemoryReader(yaml));
-            ParseFrontmatter(parser, test, ref onlyStrict, ref noStrict);
-        }
-        catch (Exception ex)
-        {
-            throw new ArgumentException($"Could not lod YAML content from file {fileName}: {ex.Message}", ex);
-        }
-
-        test.Program = contents;
+        var test = ReadAndParse(stream, fileName, out var onlyStrict, out var noStrict);
 
         if (!generateInverseStrictTestCase)
         {
@@ -239,6 +218,103 @@ public sealed class Test262File : IEquatable<Test262File>
     }
 
     /// <summary>
+    /// Parses one test file's contents into its (non-strict) test case.
+    /// </summary>
+    /// <param name="contents">The whole file.</param>
+    /// <param name="fileName">The normalized, root-relative file name.</param>
+    /// <param name="allowFastPath">
+    /// Whether frontmatter in test262's usual YAML subset may be read without YamlDotNet; false forces the
+    /// YamlDotNet path, which is what the parity tests compare the fast path against.
+    /// </param>
+    /// <param name="onlyStrict">Set when the flags ask for strict mode only.</param>
+    /// <param name="noStrict">Set when the flags rule strict mode out.</param>
+    internal static Test262File Parse(string contents, string fileName, bool allowFastPath, out bool onlyStrict, out bool noStrict)
+    {
+        var yamlStartIndex = contents.IndexOf(YamlSectionStartMarker, StringComparison.Ordinal);
+        var yamlEndIndex = yamlStartIndex < 0 ? -1 : contents.IndexOf(YamlSectionEndMarker, yamlStartIndex, StringComparison.Ordinal);
+        var yamlLength = CheckFrontmatterBounds(yamlStartIndex, yamlEndIndex, fileName);
+
+        var test = ParseFrontmatter(contents.AsMemory(yamlStartIndex + YamlSectionStartMarker.Length, yamlLength), fileName, allowFastPath, out onlyStrict, out noStrict);
+        test._sourceText = contents;
+        test._program = contents;
+        return test;
+    }
+
+    /// <summary>
+    /// Parses one test file's UTF-8 bytes, decoding only the frontmatter; the program is decoded on first use.
+    /// </summary>
+    private static Test262File Parse(byte[] bytes, int offset, int count, string fileName, out bool onlyStrict, out bool noStrict)
+    {
+        // Skip the UTF-8 byte order mark, which a StreamReader would have consumed.
+        if (count >= 3 && bytes[offset] == 0xEF && bytes[offset + 1] == 0xBB && bytes[offset + 2] == 0xBF)
+        {
+            offset += 3;
+            count -= 3;
+        }
+
+        // The markers are ASCII, so their byte offsets are exact boundaries of the frontmatter's UTF-8 text.
+        var span = new ReadOnlySpan<byte>(bytes, offset, count);
+        var yamlStartIndex = span.IndexOf("/*---"u8);
+        var yamlEndIndex = yamlStartIndex < 0 ? -1 : span.Slice(yamlStartIndex).IndexOf("---*/"u8);
+        if (yamlEndIndex >= 0)
+        {
+            yamlEndIndex += yamlStartIndex;
+        }
+
+        var yamlLength = CheckFrontmatterBounds(yamlStartIndex, yamlEndIndex, fileName);
+
+        var yaml = Encoding.UTF8.GetString(bytes, offset + yamlStartIndex + YamlSectionStartMarker.Length, yamlLength);
+        var test = ParseFrontmatter(yaml.AsMemory(), fileName, allowFastPath: true, out onlyStrict, out noStrict);
+        test._sourceBytes = bytes;
+        test._sourceOffset = offset;
+        test._sourceLength = count;
+        test._program = null;
+        return test;
+    }
+
+    private static int CheckFrontmatterBounds(int yamlStartIndex, int yamlEndIndex, string fileName)
+    {
+        if (yamlStartIndex < 0)
+        {
+            throw new ArgumentException($"Test case {fileName} is invalid, cannot find YAML section start.");
+        }
+
+        if (yamlEndIndex < 0)
+        {
+            throw new ArgumentException($"Test case {fileName} is invalid, cannot find YAML section end.");
+        }
+
+        var yamlLength = yamlEndIndex - YamlSectionEndMarker.Length - yamlStartIndex;
+        if (yamlLength <= 0)
+        {
+            throw new ArgumentException($"Test case {fileName} is invalid, cannot find YAML section.");
+        }
+
+        return yamlLength;
+    }
+
+    private static Test262File ParseFrontmatter(ReadOnlyMemory<char> yaml, string fileName, bool allowFastPath, out bool onlyStrict, out bool noStrict)
+    {
+        onlyStrict = false;
+        noStrict = false;
+        var test = new Test262File(fileName);
+        if (!allowFastPath || !TryReadFrontmatter(yaml.Span, test, ref onlyStrict, ref noStrict))
+        {
+            try
+            {
+                var parser = new Parser(new MemoryReader(yaml));
+                ParseFrontmatter(parser, test, ref onlyStrict, ref noStrict);
+            }
+            catch (Exception ex)
+            {
+                throw new ArgumentException($"Could not lod YAML content from file {fileName}: {ex.Message}", ex);
+            }
+        }
+
+        return test;
+    }
+
+    /// <summary>
     /// Creates strict version of the test case by adding `use strict`; directive to the beginning of the program.
     /// </summary>
     public Test262File AsStrict()
@@ -248,9 +324,11 @@ public sealed class Test262File : IEquatable<Test262File>
             return this;
         }
 
+        // The clone shares the source (and the decoded text, if there is one already) and builds its own
+        // prefixed program on first use.
         var clone = (Test262File) this.MemberwiseClone();
         clone.Strict = true;
-        clone.Program = _useStrictWithNewLine + Program;
+        clone._program = null;
         return clone;
     }
 

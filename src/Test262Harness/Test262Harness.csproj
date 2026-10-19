@@ -15,4 +15,8 @@
     <None Include="../../README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Test262Harness.Tests" />
+  </ItemGroup>
+
 </Project>
