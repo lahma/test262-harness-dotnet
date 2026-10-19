@@ -1,8 +1,10 @@
 using System;
+using System.Linq;
 using System.Net.Http;
 using Fallout.Common;
 using Fallout.Common.CI.GitHubActions;
 using Fallout.Common.Git;
+using Fallout.Common.IO;
 using Fallout.Common.Tooling;
 using Fallout.Common.Tools.DotNet;
 using Fallout.Common.Utilities.Net;
@@ -30,15 +32,40 @@ public partial class Build
                 ? (((IPublish) this).NuGetSource, GetTrustedPublishingApiKey())
                 : (MyGetSource, Assert.NotNullOrWhiteSpace(MyGetApiKey, "MyGet API key is required for preview pushes"));
 
-            DotNetNuGetPush(_ => _
-                    .SetSource(source)
-                    .SetApiKey(apiKey)
-                    .EnableSkipDuplicate()
-                    .CombineWith(((IPublish) this).PushPackageFiles, (_, v) => _
-                        .SetTargetPath(v)),
-                ((IPublish) this).PushDegreeOfParallelism,
-                ((IPublish) this).PushCompleteOnFailure);
+            // Test262Harness.Console.<version>.nupkg only points at the per-RID tool packages
+            // (Test262Harness.Console.<rid>.<version>.nupkg), so it goes last: once it is on the feed,
+            // installing the tool needs the packages it points at.
+            var packages = ((IPublish) this).PushPackageFiles.ToList();
+            var toolPointerPackages = packages.Where(IsToolPointerPackage).ToList();
+
+            foreach (var batch in new[] { packages.Except(toolPointerPackages).ToList(), toolPointerPackages })
+            {
+                if (batch.Count == 0)
+                {
+                    continue;
+                }
+
+                DotNetNuGetPush(_ => _
+                        .SetSource(source)
+                        .SetApiKey(apiKey)
+                        .EnableSkipDuplicate()
+                        .CombineWith(batch, (_, v) => _
+                            .SetTargetPath(v)),
+                    ((IPublish) this).PushDegreeOfParallelism,
+                    ((IPublish) this).PushCompleteOnFailure);
+            }
         });
+
+    /// <summary>
+    /// Test262Harness.Console.1.2.3.nupkg is the pointer package; the per-RID ones carry the RID right
+    /// after the package id (Test262Harness.Console.win-x64.1.2.3.nupkg, Test262Harness.Console.any.1.2.3.nupkg).
+    /// </summary>
+    static bool IsToolPointerPackage(AbsolutePath package)
+    {
+        const string toolPackageIdPrefix = "Test262Harness.Console.";
+        return package.Name.StartsWith(toolPackageIdPrefix, StringComparison.Ordinal)
+               && char.IsAsciiDigit(package.Name[toolPackageIdPrefix.Length]);
+    }
 
     /// <summary>
     /// Exchanges the job's GitHub OIDC token for a short-lived nuget.org API key, so no long-lived
