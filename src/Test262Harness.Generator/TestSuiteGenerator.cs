@@ -124,11 +124,25 @@ public class TestSuiteGenerator
         var (testTemplate, testHash) = await GetTemplate("Tests");
         foreach (var item in stream.Options.SubDirectories)
         {
-            var tests = stream.GetTestFiles([item]).ToList();
-
-            if (_options.ShardCount > 1)
+            string? directoryExcludeReason = null;
+            if (_options.ExcludedDirectories.Contains(item))
             {
-                tests = tests.Where(x => GetShardIndex(x.FileName) == _options.ShardIndex).ToList();
+                directoryExcludeReason = $"Directory {item} was excluded";
+            }
+
+            // Each file is reduced to what the template needs as soon as it has been read, so the parsed test
+            // cases - program text included - do not stay alive until the whole sub-directory has been read.
+            var tests = new List<(string Group, TestCase TestCase)>();
+            foreach (var file in stream.GetTestFiles([item]))
+            {
+                if (_options.ShardCount > 1 && GetShardIndex(file.FileName) != _options.ShardIndex)
+                {
+                    continue;
+                }
+
+                var excludeReason = directoryExcludeReason ?? GetExcludeReason(file);
+                var nonParallel = excludeReason is null && IsNonParallelizable(file);
+                tests.Add((GetGroupName(file.FileName, item), new TestCase(file, excludeReason, nonParallel)));
             }
 
             if (tests.Count == 0)
@@ -136,63 +150,19 @@ public class TestSuiteGenerator
                 continue;
             }
 
-            string? directoryExcludeReason = null;
-            if (_options.ExcludedDirectories.Contains(item))
-            {
-                directoryExcludeReason = $"Directory {item} was excluded";
-            }
-
             string TestMethodName(string s) => ConversionUtilities.ConvertToUpperCamelCase(s.Replace(item, ""));
 
+            // Ordinal ordering: the generated files must not depend on the culture of the machine generating them.
             var model = new GeneratorModel
             {
                 TestClassName = $"{ConversionUtilities.ConvertToUpperCamelCase(item)}Tests",
                 Namespace = _options.Namespace,
                 TestCaseGroupings = tests
-                    .GroupBy(x =>
-                    {
-                        var final = x.FileName.AsSpan();
-                        if (final.StartsWith("test/"))
-                        {
-                            final = final.Slice("test/".Length);
-                        }
-
-                        if (final.StartsWith(item))
-                        {
-                            final = final.Slice(item.Length);
-                        }
-
-                        final = final.TrimStart('/');
-
-                        // remove file name
-                        var slashIndex = final.LastIndexOf('/');
-                        if (slashIndex != -1)
-                        {
-                            final = final.Slice(0, slashIndex);
-                        }
-                        else
-                        {
-                            // just remove the extension
-                            final = final.Slice(0, final.LastIndexOf('.'));
-                        }
-
-                        return final.ToString();
-                    })
-                    .Select(x =>
-                    {
-                        var testCases = x
-                            .Select(file =>
-                            {
-                                var excludeReason = directoryExcludeReason ?? GetExcludeReason(file);
-                                var nonParallel = excludeReason is null && IsNonParallelizable(file);
-                                return new TestCase(file, excludeReason, nonParallel);
-                            })
-                            .OrderBy(x => x.FileName)
-                            .ToList();
-
-                        return new TestCaseGroup(TestMethodName(x.Key), testCases);
-                    })
-                    .OrderBy(x => x.Name)
+                    .GroupBy(x => x.Group, StringComparer.Ordinal)
+                    .Select(x => new TestCaseGroup(
+                        TestMethodName(x.Key),
+                        x.Select(t => t.TestCase).OrderBy(t => t.FileName, StringComparer.Ordinal).ToList()))
+                    .OrderBy(x => x.Name, StringComparer.Ordinal)
                     .ToList()
             };
 
@@ -218,6 +188,39 @@ public class TestSuiteGenerator
         context.SetValue("SuiteGitSha", _options.SuiteGitSha);
         context.SetValue("SuiteDirectory", _options.SuiteDirectory);
         context.SetValue("TemplateSha", templateHash);
+    }
+
+    /// <summary>
+    /// The directory a test file belongs to below the sub-directory, which becomes one generated test method.
+    /// </summary>
+    private static string GetGroupName(string fileName, string subDirectory)
+    {
+        var final = fileName.AsSpan();
+        if (final.StartsWith("test/"))
+        {
+            final = final.Slice("test/".Length);
+        }
+
+        if (final.StartsWith(subDirectory))
+        {
+            final = final.Slice(subDirectory.Length);
+        }
+
+        final = final.TrimStart('/');
+
+        // remove file name
+        var slashIndex = final.LastIndexOf('/');
+        if (slashIndex != -1)
+        {
+            final = final.Slice(0, slashIndex);
+        }
+        else
+        {
+            // just remove the extension
+            final = final.Slice(0, final.LastIndexOf('.'));
+        }
+
+        return final.ToString();
     }
 
     private int GetShardIndex(string fileName)
