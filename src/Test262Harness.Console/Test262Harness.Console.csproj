@@ -27,32 +27,4 @@
     <None Include="../../README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
-  <!--
-    The tool is packed as RID-specific tool packages (.NET SDK 10): `dotnet pack` writes
-      Test262Harness.Console.<version>.nupkg        a pointer package listing the ones below, nothing else
-      Test262Harness.Console.<rid>.<version>.nupkg  the tool ReadyToRun-compiled for <rid>, framework-dependent
-      Test262Harness.Console.any.<version>.nupkg    the portable IL-only tool, for every other platform
-    and `dotnet tool install` / `dotnet tool restore` fetch the pointer plus the best match for the machine.
-    ReadyToRun code spares a generate run most of its JIT work (Spectre.Console.Cli, System.Text.Json,
-    Fluid and Parlot, YamlDotNet, Zio). Measured on win-x64 (medians): printing generate's help 168 ms -> 104 ms;
-    generating Jint's suite (102,722 cases) 1.26 s -> 1.04 s on all cores, 1.57 s -> 1.23 s on one.
-    Every RID listed here is an inner build of `dotnet pack`, so pack must not run with no-build (see
-    PackSettings in build/Build.cs).
-  -->
-  <PropertyGroup>
-    <RuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64;osx-x64;osx-arm64;any</RuntimeIdentifiers>
-    <!-- The SDK turns this off again for the RID-agnostic pointer and 'any' packages. -->
-    <PublishReadyToRun>true</PublishReadyToRun>
-    <!-- Runs on the .NET runtime that comes with the SDK, as the portable package always has. -->
-    <SelfContained>false</SelfContained>
-    <!-- Restore only the runtime packs ReadyToRun compiles against (Microsoft.NETCore.App), not the
-         ASP.NET Core and Windows Desktop ones this tool never references. -->
-    <DisableTransitiveFrameworkReferenceDownloads>true</DisableTransitiveFrameworkReferenceDownloads>
-    <!-- No native launcher in the RID packages: the tool is started as `dotnet exec Test262Harness.Console.dll`,
-         like the portable package, instead of through an apphost that has to find the runtime by itself. -->
-    <UseAppHost Condition="'$(RuntimeIdentifier)' != ''">false</UseAppHost>
-    <!-- The pointer package has no binaries, so there is nothing for a symbol package to hold (NU5017). -->
-    <IncludeSymbols Condition="'$(RuntimeIdentifier)' == ''">false</IncludeSymbols>
-  </PropertyGroup>
-
 </Project>
