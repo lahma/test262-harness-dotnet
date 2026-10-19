@@ -166,12 +166,7 @@ dotnet tool restore
 dotnet test262 generate
 ```
 
-The tool needs .NET SDK 10.0.100 or later. `Test262Harness.Console` itself only points at per-platform packages,
-`Test262Harness.Console.win-x64`, `.win-arm64`, `.linux-x64`, `.linux-arm64`, `.osx-x64` and `.osx-arm64`, each
-compiled ahead of time (ReadyToRun) so that a run spends less time in the JIT, and the portable
-`Test262Harness.Console.any` for any other platform; `dotnet tool install` and `dotnet tool restore` fetch the one that
-matches the machine. If your NuGet configuration uses package source mapping, map `Test262Harness.Console.*`, not just
-`Test262Harness.Console`.
+The tool targets .NET 10, so it needs .NET SDK 10.0.100 or later.
 
 ## Test262Harness.settings.json configuration file
 

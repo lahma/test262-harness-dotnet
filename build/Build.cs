@@ -91,12 +91,5 @@ partial class Build : FalloutBuild, ITest, IPack, IPublish
         .SetAssemblyVersion(VersionPrefix)
         .SetFileVersion(VersionPrefix)
         .SetVersionPrefix(VersionPrefix)
-        .SetVersionSuffix(VersionSuffix)
-        // The tool's per-RID ReadyToRun packages are compiled by pack itself, one inner build per RID in
-        // Test262Harness.Console.csproj's RuntimeIdentifiers. Compile only produces the RID-agnostic build, so
-        // pack cannot run with --no-build; everything Compile already built is up to date and is not rebuilt,
-        // as long as pack sees the same properties Compile did.
-        .SetNoBuild(false)
-        .When(_ => IsServerBuild, _ => _
-            .EnableContinuousIntegrationBuild());
+        .SetVersionSuffix(VersionSuffix);
 }
