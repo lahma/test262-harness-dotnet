@@ -28,7 +28,7 @@ public class {{ TestClassName }} : Test262Test
     }
 {%- else %}
 {%- if testCollection.NonParallelizable %}
-    [NotInParallel]
+    [ParallelGroup("{{ TestClassName }}.{{ testCollection.Name }}")]
 {%- endif %}
     [Test]
 {%- for test in testCollection.TestCases %}

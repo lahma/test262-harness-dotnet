@@ -8,7 +8,7 @@ namespace Generated.Tests;
 
 public class BuiltInsTests : Test262Test
 {
-    [NotInParallel]
+    [ParallelGroup("BuiltInsTests.Async")]
     [Test]
     [Arguments("built-ins/Async/baz.js", false, Categories = new[] { "async" })]
     public void Async(string test, bool strict)
