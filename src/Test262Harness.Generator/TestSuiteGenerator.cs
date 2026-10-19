@@ -23,11 +23,11 @@ public class TestSuiteGenerator
     private readonly SearchValues<string> _excludedFilesStrictOnly;
     private readonly SearchValues<string> _excludedFeatures;
     private readonly SearchValues<string> _excludedFlags;
-    private readonly Glob[] _excludedFilesGlobPatterns;
+    private readonly GlobPattern[] _excludedFilesGlobPatterns;
     private readonly SearchValues<string> _nonParallelFiles;
     private readonly SearchValues<string> _nonParallelFeatures;
     private readonly SearchValues<string> _nonParallelFlags;
-    private readonly Glob[] _nonParallelFilesGlobPatterns;
+    private readonly GlobPattern[] _nonParallelFilesGlobPatterns;
     private readonly bool _anyNonParallelConfigured;
 
     public TestSuiteGenerator(TestSuiteGeneratorOptions options, string? usedSettingsFilePath)
@@ -74,7 +74,7 @@ public class TestSuiteGenerator
         _excludedFilesGlobPatterns = _options.ExcludedFiles
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Where(x => x.AsSpan().ContainsAny(_globChars))
-            .Select(x => new Glob(x, GlobOptions.Compiled | GlobOptions.CaseInsensitive))
+            .Select(x => new GlobPattern(x))
             .ToArray();
 
         _nonParallelFiles = SearchValues.Create(
@@ -89,7 +89,7 @@ public class TestSuiteGenerator
         _nonParallelFilesGlobPatterns = _options.NonParallelFiles
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Where(x => x.AsSpan().ContainsAny(_globChars))
-            .Select(x => new Glob(x, GlobOptions.Compiled | GlobOptions.CaseInsensitive))
+            .Select(x => new GlobPattern(x))
             .ToArray();
 
         _anyNonParallelConfigured = _options.NonParallelFiles.Length > 0
@@ -367,5 +367,38 @@ public class TestSuiteGenerator
         }
 
         File.WriteAllText(Path.Combine(_options.TargetPath, fileName), contents);
+    }
+
+    /// <summary>
+    /// A file glob with a cheap literal pre-check in front of it.
+    /// </summary>
+    /// <remarks>
+    /// Every pattern is tried against every test file that is not otherwise excluded, and a Glob match
+    /// splits the path into a fresh array of segment strings each time. A pattern with a directory part is
+    /// anchored at the start of the path, and one without is matched against the file name, so a path or
+    /// file name that does not start with the pattern's literal prefix cannot match, and is rejected without
+    /// going through Glob at all.
+    /// </remarks>
+    private sealed class GlobPattern
+    {
+        private readonly Glob _glob;
+        private readonly string _prefix;
+        private readonly bool _fileNameOnly;
+
+        public GlobPattern(string pattern)
+        {
+            _glob = new Glob(pattern, GlobOptions.Compiled | GlobOptions.CaseInsensitive);
+            _fileNameOnly = !pattern.Contains('/');
+
+            // Glob also treats a backslash as a separator; such a pattern simply goes without the pre-check.
+            var literalEnd = pattern.AsSpan().IndexOfAny(_globChars);
+            _prefix = pattern.Contains('\\') ? "" : literalEnd < 0 ? pattern : pattern[..literalEnd];
+        }
+
+        public bool IsMatch(string fileName)
+        {
+            var subject = _fileNameOnly ? fileName.AsSpan(fileName.LastIndexOf('/') + 1) : fileName.AsSpan();
+            return subject.StartsWith(_prefix, StringComparison.OrdinalIgnoreCase) && _glob.IsMatch(fileName);
+        }
     }
 }
