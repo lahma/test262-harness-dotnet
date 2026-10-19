@@ -1,4 +1,6 @@
 using System.Text;
+using Zio;
+using Zio.FileSystems;
 
 namespace Test262Harness.Tests;
 
@@ -15,6 +17,24 @@ public class Test262StreamTests
         var test262Stream = await Test262StreamExtensions.FromGitHub("28b31c0bf1960878abb36ab8597a0cae224a684d");
         test262Stream.GetHarnessFiles().ToList().Should().NotBeEmpty();
         test262Stream.GetTestFiles().ToList().Should().NotBeEmpty();
+    }
+
+    [Test]
+    public void FileFilterSkipsFilesBeforeTheyAreParsed()
+    {
+        var fs = new MemoryFileSystem();
+        fs.CreateDirectory("/test/language");
+        fs.WriteAllText("/test/language/kept.js", "/*---\ndescription: kept\n---*/\n");
+        // no frontmatter: parsing this one would throw
+        fs.WriteAllText("/test/language/skipped.js", "var x;\n");
+
+        var stream = Test262Stream.FromFileSystem(fs, options =>
+        {
+            options.SubDirectories = ["language"];
+            options.FileFilter = item => !item.FullName.EndsWith("skipped.js", StringComparison.Ordinal);
+        });
+
+        stream.GetTestFiles().Select(x => x.FileName).Distinct().Should().Equal("test/language/kept.js");
     }
 
     [TestCase("SyntaxError", ExpectedErrorType.SyntaxError)]
