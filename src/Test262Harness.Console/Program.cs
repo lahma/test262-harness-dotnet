@@ -50,7 +50,8 @@ internal sealed class GenerateCommand : AsyncCommand<GenerateCommand.Settings>
         [CommandOption("--shard-count")]
         public int? ShardCount { get; set; }
 
-        [Description("Zero-based index of the shard to emit, in range [0, shard-count)")]
+        // Spectre renders descriptions as markup, so a literal "[" has to be written as "[[".
+        [Description("Zero-based index of the shard to emit, in range [[0, shard-count)")]
         [CommandOption("--shard-index")]
         public int? ShardIndex { get; set; }
     }
