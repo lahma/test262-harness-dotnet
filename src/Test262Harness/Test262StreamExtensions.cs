@@ -44,8 +44,9 @@ public static class Test262StreamExtensions
                 // Opening the suite reads the whole archive anyway, so that is the validation too.
                 return Open(tempFile, tempPath, zipSubDirectory, extract, configure, tempOptions);
             }
-            catch (Exception)
+            catch (InvalidDataException)
             {
+                // A truncated or damaged download; anything else would fail the same way on a fresh copy.
                 tempOptions.LogError("Could not open the archive, deleting it and downloading again.");
             }
         }
