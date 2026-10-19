@@ -1,4 +1,5 @@
 using Zio;
+using Zio.FileSystems;
 using System.IO.Compression;
 using System.Text;
 
@@ -147,8 +148,8 @@ public class ZipArchiveFileSystemTests
     }
 
     /// <summary>
-    /// The reason the archive is materialized into memory: SharpZipLib serves every read from one
-    /// shared base stream under a single lock, which serializes parallel test execution.
+    /// The reason the archive is materialized into memory: a zip archive serves every read from one
+    /// shared base stream, which would serialize parallel test execution.
     /// </summary>
     [Test]
     public void SupportsConcurrentReads()
@@ -168,5 +169,302 @@ public class ZipArchiveFileSystemTests
         {
             results[i].Should().Contain($"var marker = {i};");
         }
+    }
+
+    [Test]
+    public void ReportsExistenceAndLengthFromTheDecompressedContent()
+    {
+        var fileSystem = CreateStream().Options.FileSystem;
+        var expectedLength = Encoding.UTF8.GetByteCount(TestFileContent(3));
+
+        fileSystem.FileExists("/test/language/sample-3.js").Should().BeTrue();
+        fileSystem.FileExists("/test/language/does-not-exist.js").Should().BeFalse();
+        fileSystem.DirectoryExists("/test/language").Should().BeTrue();
+        fileSystem.GetFileLength("/test/language/sample-3.js").Should().Be(expectedLength);
+
+        var item = fileSystem
+            .EnumerateItems("/test/language", SearchOption.AllDirectories)
+            .Single(x => x.FullName == "/test/language/sample-3.js");
+        item.Length.Should().Be(expectedLength);
+    }
+
+    /// <summary>
+    /// Entries are inflated by several workers into one shared buffer; every file has to come back
+    /// byte for byte whichever worker's range it fell into.
+    /// </summary>
+    [Test]
+    public void DecompressesEveryEntryWhicheverWorkerReadsIt()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"test262harness-tests-{Guid.NewGuid():N}.zip");
+        try
+        {
+            var expected = new Dictionary<string, string>();
+            using (var file = File.Create(path))
+            using (var archive = new ZipArchive(file, ZipArchiveMode.Create))
+            {
+                for (var i = 0; i < 200; i++)
+                {
+                    var name = $"built-ins/many/file-{i}.js";
+                    var content = TestFileContent(i, padding: 1 + i * 97 % 5000);
+                    expected[name] = content;
+                    AddEntry(archive, $"{RootName}/test/{name}", content);
+                }
+            }
+
+            var stream = Test262Stream.FromZipArchive(path, RootName);
+
+            foreach (var pair in expected)
+            {
+                stream.GetTestFile(pair.Key).Program.Should().Be(pair.Value);
+            }
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
+    public void ReadsStoredEntries()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"test262harness-tests-{Guid.NewGuid():N}.zip");
+        try
+        {
+            using (var file = File.Create(path))
+            using (var archive = new ZipArchive(file, ZipArchiveMode.Create))
+            {
+                using var stream = archive.CreateEntry($"{RootName}/test/language/stored.js", CompressionLevel.NoCompression).Open();
+                var bytes = Encoding.UTF8.GetBytes(TestFileContent(42));
+                stream.Write(bytes, 0, bytes.Length);
+            }
+
+            Test262Stream.FromZipArchive(path, RootName).GetTestFile("language/stored.js").Program.Should().Be(TestFileContent(42));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// test262 is close to the 65,535 entries a classic zip can hold; past that, archives are Zip64.
+    /// </summary>
+    [Test]
+    public void ReadsZip64Archives()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"test262harness-tests-{Guid.NewGuid():N}.zip");
+        try
+        {
+            const int Count = ushort.MaxValue + 10;
+            using (var file = File.Create(path))
+            using (var archive = new ZipArchive(file, ZipArchiveMode.Create))
+            {
+                for (var i = 0; i < Count; i++)
+                {
+                    using var stream = archive.CreateEntry($"{RootName}/test/language/f{i}.js", CompressionLevel.NoCompression).Open();
+                    stream.WriteByte((byte) ('a' + i % 26));
+                }
+            }
+
+            var fileSystem = Test262Stream.FromZipArchive(path, RootName).Options.FileSystem;
+
+            fileSystem.EnumerateFiles("/test/language").Should().HaveCount(Count);
+            fileSystem.ReadAllText($"/test/language/f{Count - 1}.js").Should().Be(((char) ('a' + (Count - 1) % 26)).ToString());
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// A classic archive holds exactly 65,535 entries without any Zip64 record: git archive, which GitHub's
+    /// archives come from, only writes them once a value no longer fits its classic field.
+    /// </summary>
+    [Test]
+    public void ReadsAClassicArchiveWithExactly65535Entries()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"test262harness-tests-{Guid.NewGuid():N}.zip");
+        try
+        {
+            const int Count = ushort.MaxValue;
+            CreateArchiveWithoutZip64Records(path, Count);
+
+            var fileSystem = Test262Stream.FromZipArchive(path, RootName).Options.FileSystem;
+
+            fileSystem.EnumerateFiles("/test/language").Should().HaveCount(Count);
+            fileSystem.ReadAllText($"/test/language/f{Count - 1}.js").Should().Be(((char) ('a' + (Count - 1) % 26)).ToString());
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// Past 65,535 entries the classic count is stuck at its maximum, so an archive that lacks the Zip64 records
+    /// must be rejected rather than read up to the 65,535th entry.
+    /// </summary>
+    [Test]
+    public void RejectsAnArchiveThatOutgrowsTheClassicCountWithoutZip64Records()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"test262harness-tests-{Guid.NewGuid():N}.zip");
+        try
+        {
+            CreateArchiveWithoutZip64Records(path, ushort.MaxValue + 10);
+
+            var act = () => Test262Stream.FromZipArchive(path, RootName);
+
+            act.Should().Throw<InvalidDataException>();
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// Writes <paramref name="count"/> one-byte entries with <see cref="ZipArchive"/>, which adds Zip64 records from
+    /// 65,535 entries on, and cuts those records out again, leaving only the classic end record.
+    /// </summary>
+    private static void CreateArchiveWithoutZip64Records(string path, int count)
+    {
+        byte[] bytes;
+        using (var memory = new MemoryStream())
+        {
+            using (var archive = new ZipArchive(memory, ZipArchiveMode.Create, leaveOpen: true))
+            {
+                for (var i = 0; i < count; i++)
+                {
+                    using var stream = archive.CreateEntry($"{RootName}/test/language/f{i}.js", CompressionLevel.NoCompression).Open();
+                    stream.WriteByte((byte) ('a' + i % 26));
+                }
+            }
+
+            bytes = memory.ToArray();
+        }
+
+        // The classic end record, preceded by the 20-byte Zip64 locator, preceded by the 56-byte Zip64 record.
+        var end = bytes.AsSpan().LastIndexOf("PK\u0005\u0006"u8);
+        BitConverter.ToUInt32(bytes, end - 20).Should().Be(0x07064b50u);
+        BitConverter.ToUInt32(bytes, end - 76).Should().Be(0x06064b50u);
+
+        using var file = File.Create(path);
+        file.Write(bytes, 0, end - 76);
+        file.Write(bytes, end, bytes.Length - end);
+    }
+
+    [Test]
+    public void AcceptsARootNameEndingInASlash()
+    {
+        var withSlash = Test262Stream.FromZipArchive(_archivePath, RootName + "/").Options.FileSystem;
+        var withoutSlash = CreateStream().Options.FileSystem;
+
+        withSlash.EnumerateFiles("/", "*", SearchOption.AllDirectories)
+            .Should().Equal(withoutSlash.EnumerateFiles("/", "*", SearchOption.AllDirectories)).And.NotBeEmpty();
+    }
+
+    [Test]
+    public void RejectsATruncatedArchiveAsInvalidData()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"test262harness-tests-{Guid.NewGuid():N}.zip");
+        try
+        {
+            var bytes = File.ReadAllBytes(_archivePath);
+            File.WriteAllBytes(path, bytes.AsSpan(0, bytes.Length / 2).ToArray());
+
+            var act = () => Test262Stream.FromZipArchive(path, RootName);
+
+            act.Should().Throw<InvalidDataException>();
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// Every file of a real suite archive, byte for byte against <see cref="ZipArchive"/>.
+    /// </summary>
+    [Test]
+    public async Task MatchesZipArchiveOnAWholeSuite()
+    {
+        var zip = Environment.GetEnvironmentVariable("TEST262_PARITY_ZIP");
+        string root;
+        Test262Stream stream;
+        if (string.IsNullOrEmpty(zip))
+        {
+            const string Sha = "28b31c0bf1960878abb36ab8597a0cae224a684d";
+            stream = await Test262StreamExtensions.FromGitHub(Sha);
+            zip = Path.Combine(Path.GetTempPath(), $"test262-{Sha}.zip");
+            root = $"test262-{Sha}";
+        }
+        else
+        {
+            root = Path.GetFileNameWithoutExtension(zip);
+            stream = Test262Stream.FromZipArchive(zip, root);
+        }
+
+        var fileSystem = stream.Options.FileSystem;
+
+        // The tree a MemoryFileSystem builds from the same entries in the same order: enumeration must visit
+        // paths in exactly its order, since that is what consumers saw before.
+        var reference = new MemoryFileSystem();
+        var compared = 0;
+        using (var archive = ZipFile.OpenRead(zip))
+        {
+            foreach (var entry in archive.Entries)
+            {
+                var name = entry.FullName;
+                if (!name.StartsWith($"{root}/test", StringComparison.Ordinal) && !name.StartsWith($"{root}/harness", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                var path = (UPath) name.Substring(root.Length);
+                if (name.EndsWith('/'))
+                {
+                    reference.CreateDirectory(path);
+                    continue;
+                }
+
+                reference.CreateDirectory(path.GetDirectory());
+                reference.WriteAllBytes(path, []);
+
+                using var expected = new MemoryStream();
+                using (var source = entry.Open())
+                {
+                    source.CopyTo(expected);
+                }
+
+                fileSystem.ReadAllBytes(path).AsSpan().SequenceEqual(expected.ToArray()).Should().BeTrue(path.FullName);
+                compared++;
+            }
+        }
+
+        compared.Should().BeGreaterThan(40_000);
+
+        foreach (var directory in new UPath[] { "/test", "/test/built-ins", "/harness" })
+        {
+            fileSystem.EnumerateItems(directory, SearchOption.AllDirectories).Select(x => x.FullName)
+                .Should().Equal(reference.EnumerateItems(directory, SearchOption.AllDirectories).Select(x => x.FullName), directory.FullName);
+            fileSystem.EnumerateFiles(directory, "*.js", SearchOption.AllDirectories).Select(x => x.FullName)
+                .Should().Equal(reference.EnumerateFiles(directory, "*.js", SearchOption.AllDirectories).Select(x => x.FullName), directory.FullName);
+            fileSystem.EnumerateDirectories(directory, "*", SearchOption.TopDirectoryOnly).Select(x => x.FullName)
+                .Should().Equal(reference.EnumerateDirectories(directory, "*", SearchOption.TopDirectoryOnly).Select(x => x.FullName), directory.FullName);
+        }
+    }
+
+    [Test]
+    public void IsReadOnly()
+    {
+        var fileSystem = CreateStream().Options.FileSystem;
+
+        fileSystem.Invoking(x => x.WriteAllText("/test/language/new.js", "x")).Should().Throw<UnauthorizedAccessException>();
+        fileSystem.Invoking(x => x.OpenFile("/test/language/sample-1.js", FileMode.Open, FileAccess.ReadWrite)).Should().Throw<UnauthorizedAccessException>();
+        fileSystem.Invoking(x => x.DeleteFile("/test/language/sample-1.js")).Should().Throw<UnauthorizedAccessException>();
+        fileSystem.Invoking(x => x.CreateDirectory("/test/other")).Should().Throw<UnauthorizedAccessException>();
+
+        fileSystem.FileExists("/test/language/sample-1.js").Should().BeTrue();
     }
 }
