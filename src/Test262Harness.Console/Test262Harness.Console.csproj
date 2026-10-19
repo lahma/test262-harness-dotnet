@@ -8,6 +8,10 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>test262</ToolCommandName>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!-- A generate run is over in a second or two, nearly all of it in tier-0 code: dynamic PGO's
+         instrumentation never gets to pay for itself in a process that short. Measured on the full suite:
+         1.6 s with it, 1.1 s without. -->
+    <TieredPGO>false</TieredPGO>
   </PropertyGroup>
 
   <ItemGroup>
