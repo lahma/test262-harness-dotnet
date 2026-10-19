@@ -54,22 +54,31 @@ internal static class ZipCentralDirectory
         long size = ReadUInt32(archive, end + 12);
         long offset = ReadUInt32(archive, end + 16);
 
+        // A classic archive can hold exactly 65,535 entries, and writers such as git archive only add the Zip64
+        // records once a value no longer fits: a count at the limit without a locator is the real count.
+        var countAtLimitWithoutZip64 = false;
         if (count == ushort.MaxValue || size == uint.MaxValue || offset == uint.MaxValue)
         {
             var locator = end - 20;
-            if (locator < 0 || ReadUInt32(archive, locator) != Zip64EndOfCentralDirectoryLocatorSignature)
+            if (locator >= 0 && ReadUInt32(archive, locator) == Zip64EndOfCentralDirectoryLocatorSignature)
+            {
+                var record = ToIndex(archive, ReadInt64(archive, locator + 8), 56);
+                if (ReadUInt32(archive, record) != Zip64EndOfCentralDirectorySignature)
+                {
+                    throw new InvalidDataException("Zip64 end of central directory record not found.");
+                }
+
+                count = ReadInt64(archive, record + 32);
+                offset = ReadInt64(archive, record + 48);
+            }
+            else if (size == uint.MaxValue || offset == uint.MaxValue)
             {
                 throw new InvalidDataException("Zip64 end of central directory locator not found.");
             }
-
-            var record = ToIndex(archive, ReadInt64(archive, locator + 8), 56);
-            if (ReadUInt32(archive, record) != Zip64EndOfCentralDirectorySignature)
+            else
             {
-                throw new InvalidDataException("Zip64 end of central directory record not found.");
+                countAtLimitWithoutZip64 = true;
             }
-
-            count = ReadInt64(archive, record + 32);
-            offset = ReadInt64(archive, record + 48);
         }
 
         if (count > archive.Length / 46)
@@ -105,6 +114,13 @@ internal static class ZipCentralDirectory
 
             entries.Add(new Entry(name, localHeaderOffset, compressedLength, length, method, flags));
             position = nameStart + nameLength + extraLength + commentLength;
+        }
+
+        // An archive with more entries than the classic count holds has to say so in Zip64 records; without
+        // them, reading 65,535 entries would silently drop the rest.
+        if (countAtLimitWithoutZip64 && position != offset + size)
+        {
+            throw new InvalidDataException("Central directory holds more entries than its end record counts, and there is no Zip64 record.");
         }
 
         return entries;
@@ -194,21 +210,20 @@ internal static class ZipCentralDirectory
             if (tag == Zip64ExtraFieldTag)
             {
                 // Only the values whose 32-bit fields overflowed are present, in this order.
+                var fieldEnd = field + size;
                 if (uncompressed == uint.MaxValue)
                 {
-                    uncompressed = ReadInt64(archive, field);
-                    field += 8;
+                    uncompressed = ReadZip64Value(archive, ref field, fieldEnd);
                 }
 
                 if (compressed == uint.MaxValue)
                 {
-                    compressed = ReadInt64(archive, field);
-                    field += 8;
+                    compressed = ReadZip64Value(archive, ref field, fieldEnd);
                 }
 
                 if (localHeaderOffset == uint.MaxValue)
                 {
-                    localHeaderOffset = ReadInt64(archive, field);
+                    localHeaderOffset = ReadZip64Value(archive, ref field, fieldEnd);
                 }
 
                 return;
@@ -218,6 +233,18 @@ internal static class ZipCentralDirectory
         }
 
         throw new InvalidDataException("Zip64 extra field missing for an entry that needs it.");
+    }
+
+    private static long ReadZip64Value(byte[] archive, ref int field, int fieldEnd)
+    {
+        if (field + 8 > fieldEnd)
+        {
+            throw new InvalidDataException("Zip64 extra field is shorter than the values it has to hold.");
+        }
+
+        var value = ReadInt64(archive, field);
+        field += 8;
+        return value;
     }
 
     /// <summary>

@@ -277,6 +277,93 @@ public class ZipArchiveFileSystemTests
         }
     }
 
+    /// <summary>
+    /// A classic archive holds exactly 65,535 entries without any Zip64 record: git archive, which GitHub's
+    /// archives come from, only writes them once a value no longer fits its classic field.
+    /// </summary>
+    [Test]
+    public void ReadsAClassicArchiveWithExactly65535Entries()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"test262harness-tests-{Guid.NewGuid():N}.zip");
+        try
+        {
+            const int Count = ushort.MaxValue;
+            CreateArchiveWithoutZip64Records(path, Count);
+
+            var fileSystem = Test262Stream.FromZipArchive(path, RootName).Options.FileSystem;
+
+            fileSystem.EnumerateFiles("/test/language").Should().HaveCount(Count);
+            fileSystem.ReadAllText($"/test/language/f{Count - 1}.js").Should().Be(((char) ('a' + (Count - 1) % 26)).ToString());
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// Past 65,535 entries the classic count is stuck at its maximum, so an archive that lacks the Zip64 records
+    /// must be rejected rather than read up to the 65,535th entry.
+    /// </summary>
+    [Test]
+    public void RejectsAnArchiveThatOutgrowsTheClassicCountWithoutZip64Records()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"test262harness-tests-{Guid.NewGuid():N}.zip");
+        try
+        {
+            CreateArchiveWithoutZip64Records(path, ushort.MaxValue + 10);
+
+            var act = () => Test262Stream.FromZipArchive(path, RootName);
+
+            act.Should().Throw<InvalidDataException>();
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// Writes <paramref name="count"/> one-byte entries with <see cref="ZipArchive"/>, which adds Zip64 records from
+    /// 65,535 entries on, and cuts those records out again, leaving only the classic end record.
+    /// </summary>
+    private static void CreateArchiveWithoutZip64Records(string path, int count)
+    {
+        byte[] bytes;
+        using (var memory = new MemoryStream())
+        {
+            using (var archive = new ZipArchive(memory, ZipArchiveMode.Create, leaveOpen: true))
+            {
+                for (var i = 0; i < count; i++)
+                {
+                    using var stream = archive.CreateEntry($"{RootName}/test/language/f{i}.js", CompressionLevel.NoCompression).Open();
+                    stream.WriteByte((byte) ('a' + i % 26));
+                }
+            }
+
+            bytes = memory.ToArray();
+        }
+
+        // The classic end record, preceded by the 20-byte Zip64 locator, preceded by the 56-byte Zip64 record.
+        var end = bytes.AsSpan().LastIndexOf("PK\u0005\u0006"u8);
+        BitConverter.ToUInt32(bytes, end - 20).Should().Be(0x07064b50u);
+        BitConverter.ToUInt32(bytes, end - 76).Should().Be(0x06064b50u);
+
+        using var file = File.Create(path);
+        file.Write(bytes, 0, end - 76);
+        file.Write(bytes, end, bytes.Length - end);
+    }
+
+    [Test]
+    public void AcceptsARootNameEndingInASlash()
+    {
+        var withSlash = Test262Stream.FromZipArchive(_archivePath, RootName + "/").Options.FileSystem;
+        var withoutSlash = CreateStream().Options.FileSystem;
+
+        withSlash.EnumerateFiles("/", "*", SearchOption.AllDirectories)
+            .Should().Equal(withoutSlash.EnumerateFiles("/", "*", SearchOption.AllDirectories)).And.NotBeEmpty();
+    }
+
     [Test]
     public void RejectsATruncatedArchiveAsInvalidData()
     {

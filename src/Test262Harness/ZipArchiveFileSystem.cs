@@ -55,8 +55,11 @@ internal sealed class ZipArchiveFileSystem : FileSystem
         var archive = File.ReadAllBytes(file.FullName);
         _lastWriteTime = File.GetLastWriteTime(file.FullName);
 
-        var item1 = $"{rootName.TrimEnd('/')}/test";
-        var item2 = $"{rootName.TrimEnd('/')}/harness";
+        // The entry names are cut right after the root name, so they must stay absolute paths whether or not
+        // the caller ended the root name with a slash.
+        rootName = rootName.TrimEnd('/');
+        var item1 = $"{rootName}/test";
+        var item2 = $"{rootName}/harness";
 
         // The entries to inflate, and where each one's bytes go in the shared buffer.
         var work = new List<(ZipCentralDirectory.Entry Entry, int Offset)>();
@@ -162,6 +165,12 @@ internal sealed class ZipArchiveFileSystem : FileSystem
         if (directory.IsNull || _directories.ContainsKey(directory.FullName))
         {
             return;
+        }
+
+        // The walk up the parents ends at the root, which only an absolute path reaches.
+        if (!directory.IsAbsolute)
+        {
+            throw new InvalidDataException($"Archive entry path {directory} is not absolute.");
         }
 
         if (_files.ContainsKey(directory.FullName))
