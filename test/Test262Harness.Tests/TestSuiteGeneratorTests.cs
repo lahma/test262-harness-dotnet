@@ -6,7 +6,7 @@ using Zio.FileSystems;
 
 namespace Test262Harness.Tests;
 
-public class TestSuiteGeneratorTests
+public partial class TestSuiteGeneratorTests
 {
     private static MemoryFileSystem CreateFixture()
     {
