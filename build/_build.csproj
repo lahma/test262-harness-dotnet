@@ -29,7 +29,7 @@
       one requested, so an SDK still asking for 6.14.3 is satisfied too. Remove once Fallout ships a
       NuGet.Packaging new enough to bring 7.9.0 in on its own.
     -->
-    <PackageReference Include="NuGet.Frameworks" Version="7.9.0" />
+    <PackageReference Include="NuGet.Frameworks" Version="8.0.0" />
   </ItemGroup>
 
 </Project>
